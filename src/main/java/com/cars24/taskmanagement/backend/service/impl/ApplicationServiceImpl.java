@@ -2,37 +2,52 @@ package com.cars24.taskmanagement.backend.service.impl;
 
 import com.cars24.taskmanagement.backend.data.dao.ApplicationDao;
 import com.cars24.taskmanagement.backend.data.entity.TaskExecutionLog;
+import com.cars24.taskmanagement.backend.data.repository.TaskExecutionLogRepository;
 import com.cars24.taskmanagement.backend.data.response.FunnelGroup;
 import com.cars24.taskmanagement.backend.data.response.TaskDetails;
 import com.cars24.taskmanagement.backend.data.response.TasksResponse;
 import com.cars24.taskmanagement.backend.service.ApplicationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.AggregationResults;
+import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static java.util.Collections.sort;
+import static org.springframework.data.mongodb.core.aggregation.Aggregation.match;
+import static org.springframework.data.mongodb.core.aggregation.Aggregation.project;
 
+
+
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ApplicationServiceImpl implements ApplicationService {
 
     @Autowired
-    private ApplicationDao applicationDao;
+    private TaskExecutionLogRepository taskExecutionLogRepository;
 
     @Override
     public TasksResponse getTasksByApplicationId(String applicationId) {
-        List<TaskExecutionLog> tasks = applicationDao.findByApplicationId(applicationId);
+        // Use the repository method with aggregation
+        List<TaskExecutionLog> sortedTasks = taskExecutionLogRepository.findTasksByApplicationIdSortedByUpdatedAt(applicationId);
 
-        // Convert to TaskDetails and sort by updatedAt (oldest first)
-        List<TaskDetails> sortedTasks = tasks.stream()
+        // Convert to TaskDetails
+        List<TaskDetails> taskDetailsList = sortedTasks.stream()
                 .map(this::convertToTaskDetails)
-                .sorted(Comparator.comparing(TaskDetails::getUpdatedAt))
                 .collect(Collectors.toList());
 
         // Group consecutive tasks of the same funnel
-        List<FunnelGroup> funnelGroups = groupTasksByFunnel(sortedTasks);
+        List<FunnelGroup> funnelGroups = groupTasksByFunnel(taskDetailsList);
 
         TasksResponse response = new TasksResponse();
         response.setFunnelGroups(funnelGroups);
@@ -95,5 +110,6 @@ public class ApplicationServiceImpl implements ApplicationService {
         return details;
     }
 }
+
 
 

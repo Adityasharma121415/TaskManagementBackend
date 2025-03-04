@@ -17,6 +17,6 @@ public class ApplicationDaoImpl implements ApplicationDao {
 
     @Override
     public List<TaskExecutionLog> findByApplicationId(String applicationId) {
-        return repository.findByApplicationId(applicationId);
+        return repository.findTasksByApplicationIdSortedByUpdatedAt(applicationId);
     }
 }
