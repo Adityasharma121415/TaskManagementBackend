@@ -3,35 +3,44 @@ package com.cars24.taskmanagement.backend.service.impl;
 import com.cars24.taskmanagement.backend.data.dao.ApplicationDao;
 import com.cars24.taskmanagement.backend.data.entity.TaskExecutionLog;
 import com.cars24.taskmanagement.backend.service.ApplicationService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 
 @Service
+@RequiredArgsConstructor
 public class ApplicationServiceImpl implements ApplicationService {
 
-    @Autowired
-    private ApplicationDao taskExecutionDao;
+    private final ApplicationDao taskExecutionDao;
 
-    public Map<String, List<Map<String, Object>>> getTasksGroupedByFunnel(String applicationId) {
+    public LinkedHashMap<String, List<Map<String, Object>>> getTasksGroupedByFunnel(String applicationId) {
         List<TaskExecutionLog> tasks = taskExecutionDao.findByApplicationId(applicationId);
 
-        return tasks.stream()
-                .collect(Collectors.groupingBy(
-                        task -> task.getFunnel() != null ? task.getFunnel() : "UNKNOWN",  // Handle null funnel values
-                        Collectors.mapping(task -> {
-                            Map<String, Object> taskDetails = new HashMap<>();
-                            taskDetails.put("taskId", task.getTaskId());
-                            taskDetails.put("status", task.getStatus());
-                            taskDetails.put("actorId", task.getActorId());
-                            taskDetails.put("updatedAt", task.getUpdatedAt());
-                            return taskDetails;
-                        }, Collectors.toList())));
+        // Step 1: Sort tasks by updatedAt in ascending order (oldest first)
+        tasks.sort(Comparator.comparing(TaskExecutionLog::getUpdatedAt));
+
+        // Step 2: Group tasks by funnel while maintaining insertion order
+        LinkedHashMap<String, List<Map<String, Object>>> groupedTasks = new LinkedHashMap<>();
+
+        for (TaskExecutionLog task : tasks) {
+            String funnel = task.getFunnel() != null ? task.getFunnel() : "UNKNOWN";
+
+            groupedTasks.putIfAbsent(funnel, new ArrayList<>()); // Ensure funnel exists
+
+            Map<String, Object> taskDetails = new LinkedHashMap<>(); // Use LinkedHashMap for order consistency
+            taskDetails.put("taskId", task.getTaskId());
+            taskDetails.put("status", task.getStatus());
+            taskDetails.put("actorId", task.getActorId());
+            taskDetails.put("updatedAt", task.getUpdatedAt());
+
+            groupedTasks.get(funnel).add(taskDetails);
+        }
+
+        return groupedTasks;
     }
 }
 
