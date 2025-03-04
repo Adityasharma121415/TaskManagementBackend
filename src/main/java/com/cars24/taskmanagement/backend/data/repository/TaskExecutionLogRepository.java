@@ -7,7 +7,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface TaskExecutionLogRepository extends MongoRepository<TaskExecutionLog,String> {
-    List<TaskExecutionLog> findByApplicationIdOrderByUpdatedAt(String applicationId);
-
+public interface TaskExecutionLogRepository extends MongoRepository<TaskExecutionLog, String> {
+    List<TaskExecutionLog> findByApplicationId(String applicationId);
 }
