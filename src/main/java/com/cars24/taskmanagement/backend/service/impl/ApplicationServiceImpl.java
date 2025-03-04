@@ -1,30 +1,39 @@
 package com.cars24.taskmanagement.backend.service.impl;
 
-import com.cars24.taskmanagement.backend.data.repository.ApplicationRepository;
+import com.cars24.taskmanagement.backend.data.dao.ApplicationDao;
+import com.cars24.taskmanagement.backend.data.entity.TaskExecutionLog;
 import com.cars24.taskmanagement.backend.service.ApplicationService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.aggregation.Aggregation;
-import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 
 @Service
 public class ApplicationServiceImpl implements ApplicationService {
-    @Autowired
-    private ApplicationRepository applicationRepository;
 
     @Autowired
-    private MongoTemplate mongoTemplate;
+    private ApplicationDao taskExecutionDao;
 
-    public List<Application> getSortedApplications(String applicationId) {
-        Aggregation aggregation = Aggregation.newAggregation(
-                Aggregation.match(Criteria.where("entityId").is(applicationId)),
-                Aggregation.sort(Sort.Direction.DESC, "metadata.updatedAt")
-        );
+    public Map<String, List<Map<String, Object>>> getTasksGroupedByFunnel(String applicationId) {
+        List<TaskExecutionLog> tasks = taskExecutionDao.findByApplicationId(applicationId);
 
-        AggregationResults<Application> results = mongoTemplate.aggregate(aggregation, "applications", Application.class);
-        return results.getMappedResults();
+        return tasks.stream()
+                .collect(Collectors.groupingBy(
+                        task -> task.getFunnel() != null ? task.getFunnel() : "UNKNOWN",  // Handle null funnel values
+                        Collectors.mapping(task -> {
+                            Map<String, Object> taskDetails = new HashMap<>();
+                            taskDetails.put("taskId", task.getTaskId());
+                            taskDetails.put("status", task.getStatus());
+                            taskDetails.put("actorId", task.getActorId());
+                            taskDetails.put("updatedAt", task.getUpdatedAt());
+                            return taskDetails;
+                        }, Collectors.toList())));
     }
-    }
+}
+
+
 
