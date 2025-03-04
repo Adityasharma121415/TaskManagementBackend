@@ -9,8 +9,8 @@ import java.util.Map;
 
 
 @Data
-@Document(collection = "task_execution_logs")
-public class ApplicationEntity {
+@Document(collection = "saarathi_bff_db.task_execution_log")
+public class TaskExecutionLog {
 
     @Id
     private String id;
