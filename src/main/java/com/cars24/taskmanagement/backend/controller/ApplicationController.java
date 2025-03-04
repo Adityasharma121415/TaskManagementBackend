@@ -3,6 +3,7 @@ package com.cars24.taskmanagement.backend.controller;
 
 import com.cars24.taskmanagement.backend.service.impl.ApplicationServiceImpl;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,8 +17,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ApplicationController {
 
-
-    private final ApplicationServiceImpl taskExecutionService;
+@Autowired
+    private ApplicationServiceImpl taskExecutionService;
 
     @GetMapping("/byApplicationId/{applicationId}")
     public Map<String, List<Map<String, Object>>> getTasksByApplicationId(@PathVariable String applicationId) {
