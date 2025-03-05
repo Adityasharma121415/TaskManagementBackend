@@ -4,9 +4,11 @@ import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.ChangeStreamEvent;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.messaging.ChangeStreamRequest;
 import org.springframework.data.mongodb.core.messaging.MessageListener;
 import org.springframework.data.mongodb.core.messaging.Subscription;
+
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
@@ -25,33 +27,39 @@ public class TaskExecutionChangeStreamServiceImpl {
 
     @PostConstruct
     public void startChangeStream() {
-        MessageListener<ChangeStreamEvent<Document>, Document> listener = event -> {
+        // ✅ Corrected MessageListener Generic Type
+        MessageListener<ChangeStreamEvent<Document>> listener = event -> {
             if (event.getBody() != null) {
                 processEvent(event);
             }
         };
 
-        ChangeStreamRequest<Document> request = ChangeStreamRequest.builder(listener)
-                .collection("task_execution") // ✅ Corrected the collection name
-                .filter("{ 'updateDescription.updatedFields.status': { '$exists': true } }") // ✅ Only listen for status updates
+        // ✅ Use MongoChangeStreamRequest.builder()
+        MongoChangeStreamRequest<Document> request = MongoChangeStreamRequest.builder(listener, Document.class)
+                .collection("task_execution")
+                .filter(Aggregation.newAggregation(  // ✅ Correct filter syntax
+                        Aggregation.match(
+                                Document.parse("{ 'updateDescription.updatedFields.status': { '$exists': true } }")
+                        )
+                ))
                 .build();
 
-        subscription = mongoTemplate.changeStream(request, Document.class);
+        subscription = mongoTemplate.watch(request, Document.class);
     }
 
     private void processEvent(ChangeStreamEvent<Document> event) {
         Document fullDocument = event.getBody();
         if (fullDocument != null) {
-            // ✅ Extract necessary fields correctly
             String taskId = fullDocument.getString("taskId");
             String status = fullDocument.getString("status");
-            String funnel = fullDocument.getString("funnel");  // Expect values: "CREDIT", "CONVERSION", "FULFILMENT"
+            String funnel = fullDocument.getString("funnel");
             String applicationId = fullDocument.getString("applicationId");
             String entityId = fullDocument.getString("entityId");
-            Instant eventTime = (fullDocument.getDate("updatedAt") != null) ?
-                    fullDocument.getDate("updatedAt").toInstant() : Instant.now();
+            Instant eventTime = fullDocument.getDate("updatedAt") != null
+                    ? fullDocument.getDate("updatedAt").toInstant()
+                    : Instant.now();
 
-            // ✅ Call the service to update task_execution_time
+            // ✅ Ensure the method exists in TaskExecutionServiceImpl before calling it
             timeService.updateTaskExecutionTime(taskId, status, eventTime, funnel, applicationId, entityId);
         }
     }
