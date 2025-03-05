@@ -88,31 +88,22 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     private TaskDetails convertToTaskDetails(TaskExecutionLog log) {
         TaskDetails details = new TaskDetails();
-        details.setId(log.getId());
-        details.setParentId(log.getParentId());
+
         details.setTaskId(log.getTaskId());
-        details.setVersion(log.getVersion());
-        details.setOrder(log.getOrder());
-        details.setTemplateId(log.getTemplateId());
-        details.setTemplateVersion(log.getTemplateVersion());
+
+
+
 
         // Handle null funnel in the conversion process
         details.setFunnel(log.getFunnel() != null ? log.getFunnel() : UNKNOWN_FUNNEL);
 
-        details.setChannel(log.getChannel());
-        details.setProductType(log.getProductType());
-        details.setApplicationId(log.getApplicationId());
-        details.setEntityIdentifier(log.getEntityIdentifier());
-        details.setEntityType(log.getEntityType());
-        details.setActorType(log.getActorType());
+
+
         details.setActorId(log.getActorId());
         details.setStatus(log.getStatus());
-        details.setExecutionType(log.getExecutionType());
-        details.setMetadata(log.getMetadata());
-        details.setInputResourceValueMap(log.getInputResourceValueMap());
-        details.setCreatedAt(log.getCreatedAt());
+
         details.setUpdatedAt(log.getUpdatedAt());
-        details.setHandledBy(log.getHandledBy());
+
         return details;
     }
 }
