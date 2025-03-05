@@ -2,11 +2,12 @@ package com.cars24.taskmanagement.backend.controller;
 
 
 import com.cars24.taskmanagement.backend.data.entity.TaskExecutionEntity;
-import com.cars24.taskmanagement.backend.service.impl.TaskExecutionServiceImpl;
+import com.cars24.taskmanagement.backend.service.TaskExecutionService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-        import java.util.List;
+import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -14,30 +15,37 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class TaskExecutionController {
 
-    private final TaskExecutionServiceImpl taskExecutionService;
+    private final TaskExecutionService taskExecutionService;
 
     @GetMapping
-    public List<TaskExecutionEntity> getAllTasks() {
-        return taskExecutionService.getAllTasks();
+    public ResponseEntity<List<TaskExecutionEntity>> getAllTasks() {
+        List<TaskExecutionEntity> tasks = taskExecutionService.findAll();
+        return ResponseEntity.ok(tasks);
     }
 
     @GetMapping("/{id}")
-    public Optional<TaskExecutionEntity> getTask(@PathVariable String id) {
-        return taskExecutionService.getTaskById(id);
+    public ResponseEntity<TaskExecutionEntity> getTaskById(@PathVariable String id) {
+        Optional<TaskExecutionEntity> task = taskExecutionService.findById(id);
+        return task.map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public TaskExecutionEntity createTask(@RequestBody TaskExecutionEntity task) {
-        // Set createdAt and updatedAt
+    public ResponseEntity<TaskExecutionEntity> createTask(@RequestBody TaskExecutionEntity task) {
         task.setCreatedAt(new java.util.Date());
         task.setUpdatedAt(new java.util.Date());
-        return taskExecutionService.saveTask(task);
+        TaskExecutionEntity savedTask = taskExecutionService.save(task);
+        return ResponseEntity.ok(savedTask);
     }
 
     @PutMapping("/{id}")
-    public TaskExecutionEntity updateTask(@PathVariable String id, @RequestBody TaskExecutionEntity task) {
+    public ResponseEntity<TaskExecutionEntity> updateTask(
+            @PathVariable String id,
+            @RequestBody TaskExecutionEntity task
+    ) {
         task.setId(id);
         task.setUpdatedAt(new java.util.Date());
-        return taskExecutionService.saveTask(task);
+        TaskExecutionEntity updatedTask = taskExecutionService.save(task);
+        return ResponseEntity.ok(updatedTask);
     }
 }
