@@ -13,7 +13,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse> handleRunTimeExceptions(RuntimeException exception){
 
         ApiResponse response = new ApiResponse();
-        response.setStatusCode(HttpStatus.BAD_REQUEST.value());;
+        response.setStatusCode(HttpStatus.BAD_REQUEST.value());
         response.setSuccess(false);
         response.setMessage(exception.getMessage());
 
