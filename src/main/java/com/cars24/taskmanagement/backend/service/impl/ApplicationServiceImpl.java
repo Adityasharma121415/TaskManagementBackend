@@ -33,6 +33,8 @@ import java.util.stream.Collectors;
 @Service
 public class ApplicationServiceImpl implements ApplicationService {
 
+    private static final String UNKNOWN_FUNNEL = "Unknown Funnel";
+
     @Autowired
     private ApplicationDao applicationDao;
 
@@ -65,7 +67,8 @@ public class ApplicationServiceImpl implements ApplicationService {
         FunnelGroup currentGroup = null;
 
         for (TaskDetails task : sortedTasks) {
-            String taskFunnel = task.getFunnel();
+            // Handle null funnel by replacing with "Unknown Funnel"
+            String taskFunnel = (task.getFunnel() != null) ? task.getFunnel() : UNKNOWN_FUNNEL;
 
             // If this is a new funnel or the first task
             if (currentFunnel == null || !currentFunnel.equals(taskFunnel)) {
@@ -92,7 +95,10 @@ public class ApplicationServiceImpl implements ApplicationService {
         details.setOrder(log.getOrder());
         details.setTemplateId(log.getTemplateId());
         details.setTemplateVersion(log.getTemplateVersion());
-        details.setFunnel(log.getFunnel());
+
+        // Handle null funnel in the conversion process
+        details.setFunnel(log.getFunnel() != null ? log.getFunnel() : UNKNOWN_FUNNEL);
+
         details.setChannel(log.getChannel());
         details.setProductType(log.getProductType());
         details.setApplicationId(log.getApplicationId());
