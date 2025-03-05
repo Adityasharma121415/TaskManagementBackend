@@ -20,7 +20,7 @@ public class ApplicationController {
     private final ApplicationServiceImpl taskExecutionService;
 
     @GetMapping("/{applicationId}")
-    public List<Map<String, Object>> getTasksByApplicationId(@PathVariable String applicationId) {
+    public Map<String, List<Map<String, Object>>> getTasksByApplicationId(@PathVariable String applicationId) {
         return taskExecutionService.getTasksGroupedByFunnel(applicationId);
     }
 }
