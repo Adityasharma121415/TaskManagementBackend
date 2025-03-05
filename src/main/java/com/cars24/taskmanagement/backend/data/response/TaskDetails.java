@@ -1,18 +1,21 @@
-package com.cars24.taskmanagement.backend.data.entity;
+package com.cars24.taskmanagement.backend.data.response;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
+import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 
 
 @Data
-@Document(collection = "log")
-public class TaskExecutionLog {
 
+@NoArgsConstructor
+@AllArgsConstructor
+public class TaskDetails {
     public String getId() {
         return id;
     }
@@ -20,6 +23,8 @@ public class TaskExecutionLog {
     public void setId(String id) {
         this.id = id;
     }
+
+    private String id;
 
     public String getParentId() {
         return parentId;
@@ -61,20 +66,20 @@ public class TaskExecutionLog {
         this.templateId = templateId;
     }
 
-    public String getFunnel() {
-        return funnel;
-    }
-
-    public void setFunnel(String funnel) {
-        this.funnel = funnel;
-    }
-
     public String getTemplateVersion() {
         return templateVersion;
     }
 
     public void setTemplateVersion(String templateVersion) {
         this.templateVersion = templateVersion;
+    }
+
+    public String getFunnel() {
+        return funnel;
+    }
+
+    public void setFunnel(String funnel) {
+        this.funnel = funnel;
     }
 
     public String getChannel() {
@@ -165,6 +170,14 @@ public class TaskExecutionLog {
         this.inputResourceValueMap = inputResourceValueMap;
     }
 
+    public Date getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Date createdAt) {
+        this.createdAt = createdAt;
+    }
+
     public Date getUpdatedAt() {
         return updatedAt;
     }
@@ -181,15 +194,6 @@ public class TaskExecutionLog {
         this.handledBy = handledBy;
     }
 
-    public Date getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(Date createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    private String id;
     private String parentId;
     private String taskId;
     private String version;

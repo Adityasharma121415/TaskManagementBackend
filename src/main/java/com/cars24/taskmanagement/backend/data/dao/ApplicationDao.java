@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 
-@Service
 public interface ApplicationDao {
-    List<TaskExecutionLog> findByApplicationId(String applicationId);
+    List<TaskExecutionLog> findTasksByApplicationIdSortedByUpdatedAt(String applicationId);
 }
