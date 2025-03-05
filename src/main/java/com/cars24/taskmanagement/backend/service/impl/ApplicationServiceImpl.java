@@ -34,12 +34,12 @@ import java.util.stream.Collectors;
 public class ApplicationServiceImpl implements ApplicationService {
 
     @Autowired
-    private TaskExecutionLogRepository taskExecutionLogRepository;
+    private ApplicationDao applicationDao;
 
     @Override
     public TasksResponse getTasksByApplicationId(String applicationId) {
-        // Use the repository method with aggregation
-        List<TaskExecutionLog> sortedTasks = taskExecutionLogRepository.findTasksByApplicationIdSortedByUpdatedAt(applicationId);
+        // Use the DAO to get sorted tasks from the repository
+        List<TaskExecutionLog> sortedTasks = applicationDao.findTasksByApplicationIdSortedByUpdatedAt(applicationId);
 
         // Convert to TaskDetails
         List<TaskDetails> taskDetailsList = sortedTasks.stream()

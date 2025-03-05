@@ -5,18 +5,20 @@ import com.cars24.taskmanagement.backend.data.entity.TaskExecutionLog;
 import com.cars24.taskmanagement.backend.data.repository.TaskExecutionLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-@Service
-@RequiredArgsConstructor
+@Repository
 public class ApplicationDaoImpl implements ApplicationDao {
+
     @Autowired
-    private  TaskExecutionLogRepository repository;
+    private TaskExecutionLogRepository taskExecutionLogRepository;
 
     @Override
-    public List<TaskExecutionLog> findByApplicationId(String applicationId) {
-        return repository.findTasksByApplicationIdSortedByUpdatedAt(applicationId);
+    public List<TaskExecutionLog> findTasksByApplicationIdSortedByUpdatedAt(String applicationId) {
+        return taskExecutionLogRepository.findTasksByApplicationIdSortedByUpdatedAt(applicationId);
     }
 }
+
