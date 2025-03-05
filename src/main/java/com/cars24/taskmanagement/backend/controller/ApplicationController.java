@@ -18,13 +18,13 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/tasks")
+@RequestMapping("/applicationLog")
 @RequiredArgsConstructor
 public class ApplicationController {
     @Autowired
     private  ApplicationService applicationService;
 
-    @GetMapping("/byApplicationId/{applicationId}")
+    @GetMapping("/{applicationId}")
     public ResponseEntity<ApiResponse> getTasksByApplicationId(@PathVariable String applicationId) {
         TasksResponse tasksResponse = applicationService.getTasksByApplicationId(applicationId);
 
