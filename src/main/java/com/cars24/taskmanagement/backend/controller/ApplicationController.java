@@ -12,15 +12,15 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/tasks")
+@RequestMapping("/applicationLog")
 @RequiredArgsConstructor
 public class ApplicationController {
 
 
     private final ApplicationServiceImpl taskExecutionService;
 
-    @GetMapping("/byApplicationId/{applicationId}")
-    public Map<String, List<Map<String, Object>>> getTasksByApplicationId(@PathVariable String applicationId) {
+    @GetMapping("/{applicationId}")
+    public List<Map<String, Object>> getTasksByApplicationId(@PathVariable String applicationId) {
         return taskExecutionService.getTasksGroupedByFunnel(applicationId);
     }
 }
