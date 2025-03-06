@@ -30,13 +30,13 @@ public class TaskExecutionController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PostMapping
-    public ResponseEntity<TaskExecutionEntity> createTask(@RequestBody TaskExecutionEntity task) {
-        task.setCreatedAt(new java.util.Date());
-        task.setUpdatedAt(new java.util.Date());
-        TaskExecutionEntity savedTask = taskExecutionService.save(task);
-        return ResponseEntity.ok(savedTask);
-    }
+//    @PostMapping
+//    public ResponseEntity<TaskExecutionEntity> createTask(@RequestBody TaskExecutionEntity task) {
+//        task.(new java.util.Date());
+//        task.setUpdatedAt(new java.util.Date());
+//        TaskExecutionEntity savedTask = taskExecutionService.save(task);
+//        return ResponseEntity.ok(savedTask);
+//    }
 
     @PutMapping("/{id}")
     public ResponseEntity<TaskExecutionEntity> updateTask(
@@ -44,7 +44,7 @@ public class TaskExecutionController {
             @RequestBody TaskExecutionEntity task
     ) {
         task.setId(id);
-        task.setUpdatedAt(new java.util.Date());
+//        task.setUpdatedAt(new java.util.Date());
         TaskExecutionEntity updatedTask = taskExecutionService.save(task);
         return ResponseEntity.ok(updatedTask);
     }
