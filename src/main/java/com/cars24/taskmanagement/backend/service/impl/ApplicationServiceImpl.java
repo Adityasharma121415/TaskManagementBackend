@@ -38,9 +38,10 @@ public class ApplicationServiceImpl implements ApplicationService {
                             Map<String, Object> taskDetails = new HashMap<>();
                             taskDetails.put("taskId", task.getTaskId());
                             taskDetails.put("status", task.getStatus());
-                            taskDetails.put("actorId", task.getActorId());
+                            //taskDetails.put("actorId", task.getActorId());
                             taskDetails.put("updatedAt", task.getUpdatedAt());
                             taskDetails.put("order", task.getOrder());
+                            taskDetails.put("HandledBy", task.getHandledBy());
                             return taskDetails;
                         }, Collectors.toList())));
 
