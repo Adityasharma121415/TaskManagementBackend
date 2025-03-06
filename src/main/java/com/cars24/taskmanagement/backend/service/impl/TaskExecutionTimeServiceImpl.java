@@ -14,9 +14,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @Component
-public class TaskExecutionChangeStreamServiceImpl {
+public class TaskExecutionTimeServiceImpl {
 
-    private static final Logger logger = LoggerFactory.getLogger(TaskExecutionChangeStreamServiceImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(TaskExecutionTimeServiceImpl.class);
 
     @Autowired
     private MongoTemplate mongoTemplate;

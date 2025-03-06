@@ -2,7 +2,7 @@ package com.cars24.taskmanagement.backend.service.impl;
 
 import com.cars24.taskmanagement.backend.data.entity.TaskExecutionEntity;
 import com.cars24.taskmanagement.backend.data.entity.TaskExecutionTimeEntity;
-import com.cars24.taskmanagement.backend.data.entity.SubTask;
+import com.cars24.taskmanagement.backend.data.entity.SubTaskEntity;
 import com.cars24.taskmanagement.backend.data.repository.TaskExecutionRepository;
 import com.cars24.taskmanagement.backend.data.repository.TaskExecutionTimeRepository;
 import com.cars24.taskmanagement.backend.service.TaskExecutionService;
@@ -81,21 +81,21 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
             });
 
             // Create SubTask entry
-            SubTask subTask = new SubTask(taskId, status, eventTime);
+            SubTaskEntity subTaskEntity = new SubTaskEntity(taskId, status, eventTime);
 
             // Add subTask to the appropriate funnel list
             switch (funnel.toLowerCase()) {
                 case "sourcing":
-                    taskTimeEntity.getSourcing().add(subTask);
+                    taskTimeEntity.getSourcing().add(subTaskEntity);
                     break;
                 case "credit":
-                    taskTimeEntity.getCredit().add(subTask);
+                    taskTimeEntity.getCredit().add(subTaskEntity);
                     break;
                 case "conversion":
-                    taskTimeEntity.getConversion().add(subTask);
+                    taskTimeEntity.getConversion().add(subTaskEntity);
                     break;
                 case "fulfillment":
-                    taskTimeEntity.getFulfillment().add(subTask);
+                    taskTimeEntity.getFulfillment().add(subTaskEntity);
                     break;
                 default:
                     logger.warn("Unknown funnel type: {}. Task execution time update skipped.", funnel);

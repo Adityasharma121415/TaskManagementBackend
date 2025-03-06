@@ -22,7 +22,7 @@ import java.time.Instant;
 
 @Data
 @AllArgsConstructor
-public class SubTask {
+public class SubTaskEntity {
     private String taskId;
     private String status;
     private Instant timestamp;
