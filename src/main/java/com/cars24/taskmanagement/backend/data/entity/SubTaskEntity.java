@@ -3,6 +3,7 @@ package com.cars24.taskmanagement.backend.data.entity;
 import lombok.Data;
 import java.time.Instant;
 
+
 @Data
 public class SubTaskEntity {
     private String taskId;
@@ -13,10 +14,13 @@ public class SubTaskEntity {
     private long duration;
     private int visited;
 
+
+
     public SubTaskEntity(String taskId) {
         this.taskId = taskId;
         this.new_time = Instant.now();
-        this.visited = 1;
+
+        this.visited = 0;
     }
 
     public void updateStatus(String status) {
@@ -28,6 +32,10 @@ public class SubTaskEntity {
 
             case "COMPLETED":
                 this.completed_time = Instant.now();
+                if (this.todo_time != null && this.visited ==1) {  // Ensure at least one visit
+                    this.duration += this.completed_time.toEpochMilli() - this.new_time.toEpochMilli();
+                }
+
                 if (this.todo_time != null && this.visited > 1) {  // Ensure at least one visit
                     this.duration += this.completed_time.toEpochMilli() - this.todo_time.toEpochMilli();
                 }
