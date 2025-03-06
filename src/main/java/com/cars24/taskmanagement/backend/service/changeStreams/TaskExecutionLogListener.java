@@ -1,4 +1,4 @@
-package com.cars24.taskmanagement.backend.service.impl;
+package com.cars24.taskmanagement.backend.service.changeStreams;
 
 import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
@@ -6,12 +6,10 @@ import com.mongodb.client.model.changestream.OperationType;
 import com.mongodb.client.model.changestream.FullDocument;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.bson.BsonDocument;
-import org.bson.BsonTimestamp;
 import org.bson.types.Binary;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -20,17 +18,14 @@ import java.util.List;
 
 @Service
 @Slf4j
-public class ChangeStreamServiceImpl {
+public class TaskExecutionLogListener {
 
     @Autowired
     private MongoTemplate mongoTemplate;
 
-    private static final String RESUME_TOKEN_COLLECTION = "resume_tokens";
-    private static final String RESUME_TOKEN_KEY = "change_stream_resume_token";
-
     @PostConstruct
     public void watchTaskExecutionLog() {
-        log.info("ChangeStreamServiceImpl [watchTaskExecutionLog] started");
+        log.info("TaskExecutionLogListener [watchTaskExecutionLog] started ...");
 
         new Thread(() -> {
             MongoCollection<Document> collection = mongoTemplate.getCollection("task_execution_log");
@@ -47,12 +42,13 @@ public class ChangeStreamServiceImpl {
                     storeResumeToken(change.getResumeToken());
                 }
             } catch (Exception e) {
-                log.error("ChangeStreamServiceImpl [watchTaskExecutionLog] Error: ", e);
+                log.error("TaskExecutionLogListener [watchTaskExecutionLog] Error: ", e);
             }
         }).start();
     }
+
     private void processChange(ChangeStreamDocument<Document> change) {
-        log.info("ChangeStreamServiceImpl [processChange] {}", change);
+        log.info("TaskExecutionLogListener [processChange] {}", change);
         if (change.getOperationType() == OperationType.INSERT) {
             Document fullDocument = change.getFullDocument();
             if (fullDocument != null) {
@@ -66,7 +62,7 @@ public class ChangeStreamServiceImpl {
     }
 
     private void updateActorMetrics(String actorId, String applicationId, String taskId) {
-        log.info("ChangeStreamServiceImpl [updateActorMetrics] {} {} {}", actorId, applicationId, taskId);
+        log.info("TaskExecutionLogListener [updateActorMetrics] {} {} {}", actorId, applicationId, taskId);
 
         Document query = new Document("actorId", actorId).append("applicationId", applicationId);
         Document existingDocument = mongoTemplate.getCollection("actor_metrics").find(query).first();
@@ -84,18 +80,25 @@ public class ChangeStreamServiceImpl {
         } else {
             List<Document> tasks = existingDocument.getList("tasks", Document.class);
 
-            log.info("ChangeStreamServiceImpl [updateActorMetrics] {}", tasks);
+            log.info("TaskExecutionLogListener [updateActorMetrics] {}", tasks);
 
             boolean taskExists = false;
             int visited = 1;
-            int duration = 0;
+            long duration = 0;
 
             for (Document task : tasks) {
                 if (task.getString("taskId").equals(taskId)) {
                     visited = task.getInteger("visited", 0) + 1;
-                    duration = task.getInteger("duration", 0);
+
+                    Object durationObj = task.get("duration");
+                    if (durationObj instanceof Integer) {
+                        duration = ((Integer) durationObj).longValue();
+                    } else if (durationObj instanceof Long) {
+                        duration = (Long) durationObj;
+                    }
+
                     taskExists = true;
-                    break; // Exit loop once found
+                    break;
                 }
             }
 
@@ -107,29 +110,27 @@ public class ChangeStreamServiceImpl {
                         new Document("$inc", new Document("tasks.$.visited", 1))
                                 .append("$set", new Document("tasks.$.duration", duration))
                 );
-            } else{
-
-            mongoTemplate.getCollection("actor_metrics").updateOne(
-                    query,
-                    new Document("$push", new Document("tasks", new Document()
-                            .append("taskId", taskId)
-                            .append("visited", visited)
-                            .append("duration", duration)))
-            );}
+            } else {
+                mongoTemplate.getCollection("actor_metrics").updateOne(
+                        query,
+                        new Document("$push", new Document("tasks", new Document()
+                                .append("taskId", taskId)
+                                .append("visited", visited)
+                                .append("duration", duration)))
+                );
+            }
         }
-
     }
 
     private void storeResumeToken(BsonDocument resumeToken) {
         if (resumeToken != null) {
-            log.info("ChangeStreamServiceImpl [storeResumeToken] {}", resumeToken);
+            log.info("TaskExecutionLogListener [storeResumeToken] {}", resumeToken);
 
             Document tokenDocument = new Document("_id", "resume_token")
                     .append("token", Document.parse(resumeToken.toJson()));
 
             mongoTemplate.getCollection("resume_tokens")
                     .replaceOne(new Document("_id", "resume_token"), tokenDocument, new ReplaceOptions().upsert(true));
-
 
         } else {
             log.warn("Attempted to store null resume token!");
