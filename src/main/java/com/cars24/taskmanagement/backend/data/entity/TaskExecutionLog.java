@@ -9,7 +9,7 @@ import java.util.Map;
 
 
 @Data
-@Document(collection = "log")
+@Document(collection = "task_execution_log")
 public class TaskExecutionLog {
 
     @Id
