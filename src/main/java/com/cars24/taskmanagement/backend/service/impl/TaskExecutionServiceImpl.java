@@ -1,75 +1,134 @@
 package com.cars24.taskmanagement.backend.service.impl;
 
-
+import com.cars24.taskmanagement.backend.data.entity.SubTask;
 import com.cars24.taskmanagement.backend.data.entity.TaskExecutionEntity;
+import com.cars24.taskmanagement.backend.data.entity.TaskExecutionTimeEntity;
 import com.cars24.taskmanagement.backend.data.repository.TaskExecutionRepository;
+import com.cars24.taskmanagement.backend.data.repository.TaskExecutionTimeRepository;
 import com.cars24.taskmanagement.backend.service.TaskExecutionService;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class TaskExecutionServiceImpl implements TaskExecutionService {
-
-    private static final Logger logger = LoggerFactory.getLogger(TaskExecutionServiceImpl.class);
-
+    @Autowired
     private final TaskExecutionRepository taskExecutionRepository;
+    @Autowired
+    private final TaskExecutionTimeRepository taskExecutionTimeRepository;
 
     @Override
     public List<TaskExecutionEntity> findAll() {
-        try {
-            List<TaskExecutionEntity> tasks = taskExecutionRepository.findAll();
-            logger.info("Retrieved {} tasks", tasks.size());
-            return tasks;
-        } catch (Exception e) {
-            logger.error("Error retrieving all tasks", e);
-            throw e;
-        }
+        return taskExecutionRepository.findAll();
     }
 
     @Override
     public Optional<TaskExecutionEntity> findById(String id) {
-        try {
-            Optional<TaskExecutionEntity> task = taskExecutionRepository.findById(id);
-            logger.info("Task retrieval by ID: {}", task.isPresent() ? "Found" : "Not Found");
-            return task;
-        } catch (Exception e) {
-            logger.error("Error retrieving task by ID: {}", id, e);
-            throw e;
-        }
+        return taskExecutionRepository.findById(id);
     }
 
     @Override
     public TaskExecutionEntity save(TaskExecutionEntity task) {
-        try {
-            TaskExecutionEntity savedTask = taskExecutionRepository.save(task);
-            logger.info("Task saved successfully with ID: {}", savedTask.getId());
-            return savedTask;
-        } catch (Exception e) {
-            logger.error("Error saving task", e);
-            throw e;
-        }
+        TaskExecutionEntity savedTask = taskExecutionRepository.save(task);
+        processTaskExecution(savedTask);
+        return savedTask;
     }
 
-    // Keep the existing method for change stream listener
-    public void updateTaskExecutionTime(
-            String taskId,
-            String status,
-            java.time.Instant eventTime,
-            String funnel,
-            String applicationId,
-            String entityId
-    ) {
-        try {
-            logger.info("Updating task execution time for taskId: {}", taskId);
-            // Implement your specific logic for updating task execution time
-        } catch (Exception e) {
-            logger.error("Error updating task execution time", e);
+    @Override
+    public void processTaskExecution(TaskExecutionEntity task) {
+        String applicationId = task.getApplicationId();
+        String entityId = task.getEntityId();
+        String funnel = task.getFunnel();
+        String status = task.getStatus();
+        Instant currentTime = Instant.now();
+
+        Optional<TaskExecutionTimeEntity> existingRecord =
+                taskExecutionTimeRepository.findByApplicationIdAndEntityId(applicationId, entityId);
+
+        TaskExecutionTimeEntity taskExecutionTime;
+        if (existingRecord.isPresent()) {
+            taskExecutionTime = existingRecord.get();
+        } else {
+            taskExecutionTime = new TaskExecutionTimeEntity();
+            taskExecutionTime.setApplicationId(applicationId);
+            taskExecutionTime.setEntityId(entityId);
         }
+
+        List<SubTask> subTaskList;
+        switch (funnel) {
+            case "SOURCING":
+                subTaskList = taskExecutionTime.getSourcing();
+                break;
+            case "CREDIT":
+                subTaskList = taskExecutionTime.getCredit();
+                break;
+            case "CONVERSION":
+                subTaskList = taskExecutionTime.getConversion();
+                break;
+            case "FULFILLMENT":
+                subTaskList = taskExecutionTime.getFulfillment();
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid funnel: " + funnel);
+        }
+
+        // Find if the task already exists in the funnel
+        SubTask subTask = subTaskList.stream()
+                .filter(t -> t.getTaskId().equals(task.getTaskId()))
+                .findFirst()
+                .orElse(null);
+
+        if (subTask == null) {
+            // New Task
+            subTask = new SubTask();
+            subTask.setTaskId(task.getTaskId());
+      //    subTask.setNewTime(task.get()); // Use createdAt from task_execution
+            subTask.setDuration(0);
+            subTask.setVisited(0);
+            subTaskList.add(subTask);
+        }
+
+        // Handle Task Status Updates
+        switch (status) {
+            case "TODO":
+                subTask.setTodoTime(currentTime);
+                subTask.setVisited(subTask.getVisited() + 1);
+                break;
+
+            case "COMPLETED":
+                subTask.setCompletedTime(currentTime);
+                if (subTask.getVisited() == 1) {
+                    subTask.setDuration(subTask.getDuration() + Duration.between(subTask.getNewTime(), subTask.getCompletedTime()).toSeconds());
+                } else {
+                    subTask.setDuration(subTask.getDuration() + Duration.between(subTask.getTodoTime(), subTask.getCompletedTime()).toSeconds());
+                }
+                break;
+
+            case "SENT_BACK":
+                subTask.setSendbackTime(currentTime);
+                if (subTask.getVisited() == 1) {
+                    subTask.setDuration(subTask.getDuration() + Duration.between(subTask.getNewTime(), subTask.getSendbackTime()).toSeconds());
+                } else {
+                    subTask.setDuration(subTask.getDuration() + Duration.between(subTask.getTodoTime(), subTask.getSendbackTime()).toSeconds());
+                }
+                break;
+
+            case "FAILED":
+                if (subTask.getVisited() > 0) {
+                    subTask.setVisited(subTask.getVisited() - 1);
+                }
+                break;
+
+            default:
+                throw new IllegalArgumentException("Invalid task status: " + status);
+        }
+
+        taskExecutionTimeRepository.save(taskExecutionTime);
     }
 }

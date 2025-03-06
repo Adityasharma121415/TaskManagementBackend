@@ -6,5 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface TaskExecutionRepository extends MongoRepository<TaskExecutionEntity, String> {
-    // Custom queries if needed
+
 }
