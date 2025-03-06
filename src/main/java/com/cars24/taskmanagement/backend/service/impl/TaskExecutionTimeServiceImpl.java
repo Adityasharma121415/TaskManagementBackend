@@ -32,7 +32,7 @@ public class TaskExecutionTimeServiceImpl {
         executorService.submit(() -> {
             try {
                 logger.info("Starting change stream listener for task_execution collection");
-                mongoTemplate.getCollection("task_exec")
+                mongoTemplate.getCollection("Task_exec")
                         .watch()
                         .forEach(this::processChangeStreamDocument);
             } catch (Exception e) {

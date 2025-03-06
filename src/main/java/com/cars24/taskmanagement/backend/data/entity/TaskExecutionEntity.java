@@ -7,7 +7,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.util.Date;
 
 @Data
-@Document(collection = "task_exec")
+@Document(collection = "Task_exec")
 public class TaskExecutionEntity {
     @Id
     private String id;
