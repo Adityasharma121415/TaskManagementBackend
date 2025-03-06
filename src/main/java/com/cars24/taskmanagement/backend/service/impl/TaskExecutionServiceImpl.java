@@ -2,7 +2,7 @@ package com.cars24.taskmanagement.backend.service.impl;
 
 import com.cars24.taskmanagement.backend.data.entity.TaskExecutionEntity;
 import com.cars24.taskmanagement.backend.data.entity.TaskExecutionTimeEntity;
-import com.cars24.taskmanagement.backend.data.entity.SubTask;
+import com.cars24.taskmanagement.backend.data.entity.SubTaskEntity;
 import com.cars24.taskmanagement.backend.data.repository.TaskExecutionRepository;
 import com.cars24.taskmanagement.backend.data.repository.TaskExecutionTimeRepository;
 import com.cars24.taskmanagement.backend.service.TaskExecutionService;
@@ -66,7 +66,7 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
             String funnel, String applicationId, String entityId
     ) {
         try {
-            logger.info("Updating task execution time for taskId: {}, funnel: {}", taskId, funnel);
+            logger.info("Updating task execution time for taskId: {}, funnel: {}, status: {}", taskId, funnel, status);
 
             // Fetch or create TaskExecutionTimeEntity
             Optional<TaskExecutionTimeEntity> optionalTaskTime =
@@ -80,35 +80,48 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
                 return newEntity;
             });
 
-            // Create SubTask entry
-            SubTask subTask = new SubTask(taskId, status, eventTime);
-
-            // Add subTask to the appropriate funnel list
+            // Find the correct subtask list based on the funnel
+            List<SubTaskEntity> subTaskEntityList;
             switch (funnel.toLowerCase()) {
                 case "sourcing":
-                    taskTimeEntity.getSourcing().add(subTask);
+                    subTaskEntityList = taskTimeEntity.getSourcing();
                     break;
                 case "credit":
-                    taskTimeEntity.getCredit().add(subTask);
+                    subTaskEntityList = taskTimeEntity.getCredit();
                     break;
                 case "conversion":
-                    taskTimeEntity.getConversion().add(subTask);
+                    subTaskEntityList = taskTimeEntity.getConversion();
                     break;
                 case "fulfillment":
-                    taskTimeEntity.getFulfillment().add(subTask);
+                    subTaskEntityList = taskTimeEntity.getFulfillment();
                     break;
                 default:
                     logger.warn("Unknown funnel type: {}. Task execution time update skipped.", funnel);
                     return;
             }
 
+            // Find an existing subtask with the same taskId
+            SubTaskEntity subTaskEntity = subTaskEntityList.stream()
+                    .filter(t -> t.getTaskId().equals(taskId))
+                    .findFirst()
+                    .orElseGet(() -> {
+                        logger.info("Creating new subtask for taskId: {}", taskId);
+                        SubTaskEntity newSubTaskEntity = new SubTaskEntity(taskId);
+                        subTaskEntityList.add(newSubTaskEntity);
+                        return newSubTaskEntity;
+                    });
+
+            // Update subtask status
+            subTaskEntity.updateStatus(status);
+
             // Save updated entity
             taskExecutionTimeRepository.save(taskTimeEntity);
-            logger.info("Task execution time updated successfully for applicationId={}, entityId={}",
-                    applicationId, entityId);
+            logger.info("Task execution time updated successfully for applicationId={}, entityId={}, taskId={}",
+                    applicationId, entityId, taskId);
 
         } catch (Exception e) {
-            logger.error("Error updating task execution time for taskId: {}, funnel: {}", taskId, funnel, e);
+            logger.error("Error updating task execution time for taskId: {}, funnel: {}, status: {}", taskId, funnel, status, e);
         }
     }
+
 }

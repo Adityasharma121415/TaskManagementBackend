@@ -14,8 +14,8 @@ public class TaskExecutionTimeEntity {
     private String applicationId;
     private String entityId;
     // Arrays for different funnels
-    private List<SubTask> sourcing = new ArrayList<>();
-    private List<SubTask> credit = new ArrayList<>();
-    private List<SubTask> conversion = new ArrayList<>();
-    private List<SubTask> fulfillment = new ArrayList<>();
+    private List<SubTaskEntity> sourcing = new ArrayList<>();
+    private List<SubTaskEntity> credit = new ArrayList<>();
+    private List<SubTaskEntity> conversion = new ArrayList<>();
+    private List<SubTaskEntity> fulfillment = new ArrayList<>();
 }
