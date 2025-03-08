@@ -11,7 +11,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/applicationLog")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "http://localhost:5174")
 public class ApplicationController {
 
     private ApplicationServiceImpl applicationService;
