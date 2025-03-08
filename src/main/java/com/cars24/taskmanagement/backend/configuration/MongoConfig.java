@@ -1,18 +1,17 @@
 package com.cars24.taskmanagement.backend.configuration;
 
-import com.mongodb.ConnectionString;
-import com.mongodb.MongoClientSettings;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
+
+import com.mongodb.reactivestreams.client.MongoClient;
+import com.mongodb.reactivestreams.client.MongoClients;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.mongodb.config.AbstractMongoClientConfiguration;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.data.mongodb.config.AbstractReactiveMongoConfiguration;
+import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 
 @Configuration
-public class MongoConfig extends AbstractMongoClientConfiguration {
+public class MongoConfig extends AbstractReactiveMongoConfiguration {
 
     @Value("${spring.data.mongodb.uri}")
     private String connectionString;
@@ -26,20 +25,18 @@ public class MongoConfig extends AbstractMongoClientConfiguration {
     }
 
     @Override
-    public MongoClient mongoClient() {
-        MongoClientSettings settings = MongoClientSettings.builder()
-                .applyConnectionString(new ConnectionString(connectionString))
-                .build();
-        return MongoClients.create(settings);
+    @Bean
+    public MongoClient reactiveMongoClient() {
+        return MongoClients.create(connectionString);
     }
 
     @Bean
-    public MongoTemplate mongoTemplate() {
-        return new MongoTemplate(mongoClient(), getDatabaseName());
+    public ReactiveMongoTemplate reactiveMongoTemplate() {
+        return new ReactiveMongoTemplate(reactiveMongoClient(), getDatabaseName());
     }
 
     @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
+    public WebClient.Builder webClientBuilder() {
+        return WebClient.builder();
     }
 }

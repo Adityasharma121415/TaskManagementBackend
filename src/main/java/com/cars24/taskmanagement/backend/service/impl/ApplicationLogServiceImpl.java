@@ -9,12 +9,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.ChangeStreamEvent;
 import org.springframework.data.mongodb.core.ChangeStreamOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
+
+
 
 @Service
 public class ApplicationLogServiceImpl implements ApplicationLogService {
@@ -23,10 +27,10 @@ public class ApplicationLogServiceImpl implements ApplicationLogService {
     private ApplicationLogDao applicationLogDao;
 
     @Autowired
-    private MongoTemplate mongoTemplate;
+    private ReactiveMongoTemplate reactiveMongoTemplate;
 
     @Autowired
-    private RestTemplate restTemplate;
+    private WebClient.Builder webClientBuilder;
 
     @Override
     public List<ApplicationLog> getLogsByApplicationId(String applicationId) {
@@ -39,20 +43,21 @@ public class ApplicationLogServiceImpl implements ApplicationLogService {
         ChangeStreamOptions options = ChangeStreamOptions.builder()
                 .filter(Aggregation.newAggregation(
                         Aggregation.match(
-                                Criteria.where("operationType").is(OperationType.INSERT.getValue())
+                                Criteria.where("operationType").is("insert")
                         )
                 ))
                 .build();
 
-        mongoTemplate.changeStream("applicationLogs", options, ApplicationLog.class)
-                .listen(event -> processChangeEvent(event));
+        reactiveMongoTemplate.changeStream("applicationLogs", options, ApplicationLog.class)
+                .doOnNext(event -> processChangeEvent(event))
+                .subscribe();
     }
 
     private void processChangeEvent(ChangeStreamEvent<ApplicationLog> event) {
         ApplicationLog log = event.getBody();
         if (log != null && log.getApplicationId() != null) {
             String url = "http://localhost:8080/applicationLog/" + log.getApplicationId();
-            restTemplate.getForEntity(url, String.class);
+            webClientBuilder.build().get().uri(url).retrieve().bodyToMono(String.class).subscribe();
         }
     }
 }
