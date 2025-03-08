@@ -1,5 +1,6 @@
 package com.cars24.taskmanagement.backend.data.entity;
 
+import java.time.Instant;
 import java.util.*;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
@@ -14,4 +15,6 @@ public class ActorEntity {
     private String actorId;
     private String applicationId;
     private List<TaskEntity> tasks;
+    private Long totalDuration;
+    private Instant lastUpdatedAt;
 }
