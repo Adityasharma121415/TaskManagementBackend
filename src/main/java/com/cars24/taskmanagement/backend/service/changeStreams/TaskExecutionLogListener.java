@@ -14,6 +14,9 @@ import org.bson.types.Binary;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 
 @Service
@@ -67,6 +70,33 @@ public class TaskExecutionLogListener {
         Document query = new Document("actorId", actorId).append("applicationId", applicationId);
         Document existingDocument = mongoTemplate.getCollection("actor_metrics").find(query).first();
 
+        log.info("TaskExecutionLogListener [updateActorMetrics] {}", existingDocument);
+
+        Document latestLogEntry = mongoTemplate.getCollection("task_execution_log")
+                .find(new Document("actorId", actorId).append("applicationId", applicationId))
+                .sort(new Document("updatedAt", -1)) // Sort by updatedAt instead of timestamp
+                .limit(1)
+                .first();
+
+        Instant lastUpdatedAt = null;
+
+        if (latestLogEntry != null) {
+            Date updatedAtDate = latestLogEntry.getDate("updatedAt");
+            if (updatedAtDate != null) {
+                lastUpdatedAt = updatedAtDate.toInstant();
+            } else {
+                Date createdAtDate = latestLogEntry.getDate("createdAt");
+                if (createdAtDate != null) {
+                    lastUpdatedAt = createdAtDate.toInstant();
+                }
+            }
+        }
+
+        if (lastUpdatedAt == null) {
+            lastUpdatedAt = Instant.now();
+        }
+
+
         if (existingDocument == null) {
             Document newEntry = new Document()
                     .append("applicationId", applicationId)
@@ -75,7 +105,10 @@ public class TaskExecutionLogListener {
                             .append("taskId", taskId)
                             .append("visited", 1)
                             .append("duration", 0)
-                    ));
+                    ))
+                    .append("totalDuration", 0)
+                    .append("lastUpdatedAt", lastUpdatedAt);
+
             mongoTemplate.getCollection("actor_metrics").insertOne(newEntry);
         } else {
             List<Document> tasks = existingDocument.getList("tasks", Document.class);
@@ -96,7 +129,6 @@ public class TaskExecutionLogListener {
                     } else if (durationObj instanceof Long) {
                         duration = (Long) durationObj;
                     }
-
                     taskExists = true;
                     break;
                 }
@@ -119,6 +151,20 @@ public class TaskExecutionLogListener {
                                 .append("duration", duration)))
                 );
             }
+
+            Document updatedDocument = mongoTemplate.getCollection("actor_metrics").find(query).first();
+            log.info("TaskExecutionLogListener [updateActorMetrics] updatedDocument : {}", updatedDocument);
+
+            List<Document> updatedTasks = updatedDocument.getList("tasks", Document.class);
+            long newTotalDuration = updatedTasks.stream()
+                    .mapToLong(t -> t.get("duration", Number.class).longValue())
+                    .sum();
+
+            mongoTemplate.getCollection("actor_metrics").updateOne(
+                    query,
+                    new Document("$set", new Document("totalDuration", newTotalDuration)
+                            .append("lastUpdatedAt", lastUpdatedAt))
+            );
         }
     }
 
