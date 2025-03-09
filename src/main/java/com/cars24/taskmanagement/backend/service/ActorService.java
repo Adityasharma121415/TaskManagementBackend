@@ -10,5 +10,11 @@ import java.util.Map;
 @Service
 public interface ActorService {
 
+    public List<ActorEntity> getApplications(String actorId);
+
     public Map<String, Long> getAverageDuration(String actorId);
+
+    public Map<String, Integer> taskFrequency(String actorId);
+
+    public Map<String, Object> getActorMetrics(String actorId);
 }

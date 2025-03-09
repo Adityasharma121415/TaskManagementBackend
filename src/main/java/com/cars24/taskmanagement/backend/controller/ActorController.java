@@ -22,6 +22,6 @@ public class ActorController {
     @GetMapping(path = "{actorId}")
     public ResponseEntity getActorPerformance(@PathVariable String actorId){
         log.info("ActorController [getActorPerformance] {}", actorId);
-        return ResponseEntity.ok().body(actorService.getAverageDuration(actorId));
+        return ResponseEntity.ok().body(actorService.getActorMetrics(actorId));
     }
 }
