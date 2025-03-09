@@ -10,15 +10,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class ApplicationDaoImpl implements ApplicationDao {
 
-    private TaskExecutionLogRepository repository;
-
-    // Add explicit constructor for dependency injection
-    @Autowired
-    public ApplicationDaoImpl(TaskExecutionLogRepository repository) {
-        this.repository = repository;
-    }
+    private final TaskExecutionLogRepository repository;
 
     public List<TaskExecutionLog> findByApplicationId(String applicationId) {
         return repository.findByApplicationId(applicationId);
