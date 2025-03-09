@@ -1,24 +1,19 @@
 package com.cars24.taskmanagement.backend.controller;
 
-
-
 import com.cars24.taskmanagement.backend.data.response.SlaResponse;
 import com.cars24.taskmanagement.backend.service.impl.SlaServiceImpl;
-import org.springframework.http.ResponseEntity;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/sla")
+@RequestMapping("/SLAMonitoring")
+@RequiredArgsConstructor
 public class SlaController {
 
     private final SlaServiceImpl slaService;
 
-    public SlaController(SlaServiceImpl slaService) {
-        this.slaService = slaService;
-    }
-
-    @GetMapping("/{channel}")
-    public ResponseEntity<SlaResponse> getSlaMetrics(@PathVariable String channel) {
-        return ResponseEntity.ok(slaService.getSlaMetricsByChannel(channel));
+    @GetMapping("/time/{channel}")
+    public SlaResponse getSlaByChannel(@PathVariable String channel) {
+        return slaService.getSlaMonitoring(channel);
     }
 }
