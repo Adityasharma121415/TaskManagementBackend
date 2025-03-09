@@ -1,10 +1,9 @@
 package com.cars24.taskmanagement.backend.service.impl;
 
-
 import com.cars24.taskmanagement.backend.data.dao.impl.SlaDaoImpl;
 import com.cars24.taskmanagement.backend.data.entity.SubTaskEntity;
 import com.cars24.taskmanagement.backend.data.entity.TaskExecutionTimeEntity;
-import com.cars24.taskmanagement.backend.data.exception.SlaResourceNotFoundException;
+import com.cars24.taskmanagement.backend.data.response.SlaResponse;
 import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -18,13 +17,15 @@ public class SlaServiceImpl {
         this.slaDao = slaDao;
     }
 
-    public Map<String, Double> calculateAverageTimePerFunnel() {
-        List<TaskExecutionTimeEntity> executions = slaDao.getAllTasks();
+    public SlaResponse getSlaMetricsByChannel(String channel) {
+        List<TaskExecutionTimeEntity> executions = slaDao.getTasksByChannel(channel);
         if (executions.isEmpty()) {
-            throw new SlaResourceNotFoundException("No task execution data found");
+            throw new RuntimeException("No data found for channel: " + channel);
         }
 
         Map<String, List<Long>> funnelDurations = new HashMap<>();
+        Map<String, List<Long>> taskDurations = new HashMap<>();
+        Map<String, Long> sendbackCounts = new HashMap<>();
 
         for (TaskExecutionTimeEntity execution : executions) {
             Map<String, List<SubTaskEntity>> funnels = Map.of(
@@ -37,67 +38,23 @@ public class SlaServiceImpl {
             funnels.forEach((funnelName, tasks) -> {
                 long totalDuration = tasks.stream().mapToLong(SubTaskEntity::getDuration).sum();
                 funnelDurations.computeIfAbsent(funnelName, k -> new ArrayList<>()).add(totalDuration);
+
+                for (SubTaskEntity task : tasks) {
+                    taskDurations.computeIfAbsent(task.getTaskId(), k -> new ArrayList<>()).add(task.getDuration());
+                    sendbackCounts.merge(task.getTaskId(), (long) task.getSendbacks(), Long::sum);
+                }
             });
         }
 
-        return funnelDurations.entrySet().stream()
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        entry -> entry.getValue().stream().mapToLong(Long::longValue).average().orElse(0.0)
-                ));
-    }
+        Map<String, Double> avgFunnelTimes = funnelDurations.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey,
+                        entry -> entry.getValue().stream().mapToLong(Long::longValue).average().orElse(0.0)));
 
-    // 📌 Average time per task
-    public Map<String, Double> calculateAverageTimePerTask() {
-        List<TaskExecutionTimeEntity> executions = slaDao.getAllTasks();
-        if (executions.isEmpty()) {
-            throw new SlaResourceNotFoundException("No task execution data found");
-        }
+        Map<String, Double> avgTaskTimes = taskDurations.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey,
+                        entry -> entry.getValue().stream().mapToLong(Long::longValue).average().orElse(0.0)));
 
-        Map<String, List<Long>> taskDurations = new HashMap<>();
-
-        for (TaskExecutionTimeEntity execution : executions) {
-            List<SubTaskEntity> allTasks = new ArrayList<>();
-            allTasks.addAll(execution.getSourcing());
-            allTasks.addAll(execution.getCredit());
-            allTasks.addAll(execution.getConversion());
-            allTasks.addAll(execution.getFulfillment());
-
-            for (SubTaskEntity task : allTasks) {
-                taskDurations.computeIfAbsent(task.getTaskId(), k -> new ArrayList<>()).add(task.getDuration());
-            }
-        }
-
-        return taskDurations.entrySet().stream()
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        entry -> entry.getValue().stream().mapToLong(Long::longValue).average().orElse(0.0)
-                ));
-    }
-
-    // 📌 Sendback frequency per task
-    public Map<String, Long> calculateSendbackFrequency() {
-        List<TaskExecutionTimeEntity> executions = slaDao.getAllTasks();
-        if (executions.isEmpty()) {
-            throw new SlaResourceNotFoundException("No task execution data found");
-        }
-
-        Map<String, Long> sendbackCounts = new HashMap<>();
-
-        for (TaskExecutionTimeEntity execution : executions) {
-            List<SubTaskEntity> allTasks = new ArrayList<>();
-            allTasks.addAll(execution.getSourcing());
-            allTasks.addAll(execution.getCredit());
-            allTasks.addAll(execution.getConversion());
-            allTasks.addAll(execution.getFulfillment());
-
-            for (SubTaskEntity task : allTasks) {
-                if (task.getSendback_time() != null) {
-                    sendbackCounts.merge(task.getTaskId(), 1L, Long::sum);
-                }
-            }
-        }
-
-        return sendbackCounts;
+        return new SlaResponse(avgFunnelTimes, avgTaskTimes, sendbackCounts);
     }
 }
+

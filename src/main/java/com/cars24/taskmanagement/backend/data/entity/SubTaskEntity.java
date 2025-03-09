@@ -13,6 +13,7 @@ public class SubTaskEntity {
     private Instant sendback_time;
     private long duration;
     private int visited;
+    private int sendbacks;
 
 
 
