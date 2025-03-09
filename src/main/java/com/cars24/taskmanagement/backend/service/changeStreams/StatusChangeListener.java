@@ -12,7 +12,9 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
+
 import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 
 @Service
@@ -53,7 +55,8 @@ public class StatusChangeListener {
                     Instant startUpdatedAt = redisCacheService.getTaskStartTime(applicationId, taskId, actorId);
                     if (startUpdatedAt != null) {
                         long duration = updatedAt.toEpochMilli() - startUpdatedAt.toEpochMilli();
-                        updateActorMetrics(applicationId, taskId, actorId, duration);
+                        log.info("StatusChangeListener [processChange] Duration: {}", duration);
+                        updateActorMetrics(applicationId, taskId, actorId, duration, updatedAt);
                         redisCacheService.removeTaskStartTime(applicationId, taskId, actorId);
                     }
                 }
@@ -61,12 +64,26 @@ public class StatusChangeListener {
         }
     }
 
-    private void updateActorMetrics(String applicationId, String taskId, String actorId, long duration) {
-        log.info("StatusChangeListener [updateActorMetrics] {}, {}, {}, {}", applicationId, taskId, actorId, duration);
-        Query query = new Query(Criteria.where("applicationId").is(applicationId)
-                                        .and("actorId").is(actorId));
+    private void updateActorMetrics(String applicationId, String taskId, String actorId, long duration, Instant updatedAt) {
+        log.info("StatusChangeListener [updateActorMetrics] {}, {}, {}, {}, {}", applicationId, taskId, actorId, duration, updatedAt);
 
+        Query query = new Query(Criteria.where("applicationId").is(applicationId).and("actorId").is(actorId));
         Document existingDocument = mongoTemplate.findOne(query, Document.class, "actor_metrics");
+
+        Instant latestUpdatedAt = updatedAt;
+
+        if (existingDocument != null && existingDocument.containsKey("lastUpdatedAt")) {
+            Object lastUpdatedAtObj = existingDocument.get("lastUpdatedAt");
+
+            if (lastUpdatedAtObj instanceof Date) {
+                Instant existingUpdatedAt = ((Date) lastUpdatedAtObj).toInstant();
+                if (existingUpdatedAt.isAfter(updatedAt)) {
+                    latestUpdatedAt = existingUpdatedAt;
+                }
+            } else {
+                log.warn("Unexpected format for lastUpdatedAt: {}", lastUpdatedAtObj);
+            }
+        }
 
         if (existingDocument == null) {
             Document newEntry = new Document()
@@ -75,41 +92,42 @@ public class StatusChangeListener {
                     .append("tasks", List.of(new Document()
                             .append("taskId", taskId)
                             .append("visited", 1)
-                            .append("duration", duration)
-                    ));
+                            .append("duration", duration)))
+                    .append("totalDuration", duration)
+                    .append("lastUpdatedAt", Date.from(latestUpdatedAt));
             mongoTemplate.getCollection("actor_metrics").insertOne(newEntry);
-        } else {
-            List<Document> tasks = (List<Document>) existingDocument.get("tasks");
+            return;
+        }
 
-            for (Document task : tasks) {
-                if (taskId.equals(task.getString("taskId"))) {
-                    Object existingDurationObj = task.get("duration");
+        List<Document> tasks = (List<Document>) existingDocument.get("tasks");
+        boolean taskExists = false;
 
-                    long existingDuration = 0;
-                    if (existingDurationObj instanceof Integer) {
-                        existingDuration = ((Integer) existingDurationObj).longValue();
-                    } else if (existingDurationObj instanceof Long) {
-                        existingDuration = (Long) existingDurationObj;
-                    }
-
-                    Update update = new Update()
-                            .inc("tasks.$.visited", 1)
-                            .set("tasks.$.duration", existingDuration + duration);
-
-                    Query taskQuery = new Query(Criteria.where("applicationId").is(applicationId)
-                            .and("actorId").is(actorId)
-                            .and("tasks.taskId").is(taskId));
-
-                    mongoTemplate.updateFirst(taskQuery, update, "actor_metrics");
-                    return;
-                }
+        for (Document task : tasks) {
+            if (taskId.equals(task.getString("taskId"))) {
+                taskExists = true;
+                break;
             }
+        }
 
-            mongoTemplate.updateFirst(query, new Update().push("tasks", new Document()
+        Update update = new Update()
+                .inc("totalDuration", duration)
+                .set("lastUpdatedAt", Date.from(latestUpdatedAt));
+
+        if (taskExists) {
+            Query taskQuery = new Query(Criteria.where("applicationId").is(applicationId)
+                    .and("actorId").is(actorId)
+                    .and("tasks.taskId").is(taskId));
+
+            update.inc("tasks.$.visited", 1)
+                  .inc("tasks.$.duration", duration);
+
+            mongoTemplate.updateFirst(taskQuery, update, "actor_metrics");
+        } else {
+            update.push("tasks", new Document()
                     .append("taskId", taskId)
                     .append("visited", 1)
-                    .append("duration", duration)
-            ), "actor_metrics");
+                    .append("duration", duration));
+            mongoTemplate.updateFirst(query, update, "actor_metrics");
         }
     }
 }
