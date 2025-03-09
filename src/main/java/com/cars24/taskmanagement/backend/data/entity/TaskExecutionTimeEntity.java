@@ -13,6 +13,7 @@ public class TaskExecutionTimeEntity {
     private String id;
     private String applicationId;
     private String entityId;
+    private String channel;
     // Arrays for different funnels
     private List<SubTaskEntity> sourcing = new ArrayList<>();
     private List<SubTaskEntity> credit = new ArrayList<>();

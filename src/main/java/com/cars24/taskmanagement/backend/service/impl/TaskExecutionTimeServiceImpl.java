@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Component;
-
 import jakarta.annotation.PostConstruct;
 import java.time.Instant;
 import java.util.concurrent.ExecutorService;
@@ -48,24 +47,29 @@ public class TaskExecutionTimeServiceImpl {
                 return;
             }
 
-            // Safe extraction of fields
+            // Extract required fields
             String taskId = getString(fullDocument, "taskId");
             String status = getString(fullDocument, "status");
             String funnel = getString(fullDocument, "funnel");
             String applicationId = getString(fullDocument, "applicationId");
             String entityId = getString(fullDocument, "entityId");
+            String channel = getString(fullDocument, "channel"); // Extracting channel
 
             // Validate required fields
-            if (taskId == null || status == null || funnel == null || applicationId == null || entityId == null) {
-                logger.warn("Incomplete task execution data: taskId={}, status={}, funnel={}, applicationId={}, entityId={}",
-                        taskId, status, funnel, applicationId, entityId);
+            if (taskId == null || status == null || funnel == null || applicationId == null || entityId == null || channel == null) {
+                logger.warn("Incomplete task execution data: taskId={}, status={}, funnel={}, applicationId={}, entityId={}, channel={}",
+                        taskId, status, funnel, applicationId, entityId, channel);
                 return;
             }
 
-            Instant eventTime = getInstant(fullDocument, "updatedAt");
+            // Determine correct timestamp to use
+            Instant createdAt = getInstant(fullDocument, "createdAt");
+            Instant updatedAt = getInstant(fullDocument, "updatedAt");
 
-            // Call service to update task execution time
-            timeService.updateTaskExecutionTime(taskId, status, eventTime, funnel, applicationId, entityId);
+            Instant eventTime = status.equalsIgnoreCase("NEW") ? createdAt : updatedAt;
+
+            // Call service to update task execution time with channel
+            timeService.updateTaskExecutionTime(taskId, status, createdAt, updatedAt, funnel, applicationId, entityId, channel);
         } catch (Exception e) {
             logger.error("Error processing change stream event", e);
         }

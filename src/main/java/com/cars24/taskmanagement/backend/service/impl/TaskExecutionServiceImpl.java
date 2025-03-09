@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -61,38 +62,56 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
     }
 
     @Override
+    public void updateTaskExecutionTime(String taskId, String status, Instant eventTime, String funnel, String applicationId, String entityId) {
+
+    }
+
+    @Override
+    public void updateTaskExecutionTime(String taskId, String status, Instant createdAt, Instant updatedAt, String funnel, String applicationId, String entityId) {
+
+    }
+
+    @Override
     public void updateTaskExecutionTime(
-            String taskId, String status, Instant eventTime,
-            String funnel, String applicationId, String entityId
+            String taskId, String status, Instant createdAt, Instant updatedAt,
+            String funnel, String applicationId, String entityId, String channel
     ) {
         try {
-            logger.info("Updating task execution time for taskId: {}, funnel: {}, status: {}", taskId, funnel, status);
+            logger.info("Updating task execution time for taskId: {}, funnel: {}, status: {}, channel: {}",
+                    taskId, funnel, status, channel);
 
-            // Fetch or create TaskExecutionTimeEntity
-            Optional<TaskExecutionTimeEntity> optionalTaskTime =
-                    taskExecutionTimeRepository.findByApplicationIdAndEntityId(applicationId, entityId);
+            TaskExecutionTimeEntity taskTimeEntity = taskExecutionTimeRepository
+                    .findByApplicationIdAndEntityId(applicationId, entityId)
+                    .orElseGet(() -> {
+                        logger.info("No existing TaskExecutionTimeEntity found for applicationId: {}, entityId: {}. Creating new entity.",
+                                applicationId, entityId);
+                        TaskExecutionTimeEntity newEntity = new TaskExecutionTimeEntity();
+                        newEntity.setApplicationId(applicationId);
+                        newEntity.setEntityId(entityId);
+                        newEntity.setChannel(channel); // Set channel for new entity
+                        return taskExecutionTimeRepository.save(newEntity); // Save new entity immediately
+                    });
 
-            TaskExecutionTimeEntity taskTimeEntity = optionalTaskTime.orElseGet(() -> {
-                logger.info("No existing TaskExecutionTimeEntity found for applicationId: {}, entityId: {}. Creating new entity.", applicationId, entityId);
-                TaskExecutionTimeEntity newEntity = new TaskExecutionTimeEntity();
-                newEntity.setApplicationId(applicationId);
-                newEntity.setEntityId(entityId);
-                return newEntity;
-            });
+            // Ensure the channel is updated in existing entities
+            taskTimeEntity.setChannel(channel);
 
-            // Find the correct subtask list based on the funnel
+            // Select the correct list based on the funnel type
             List<SubTaskEntity> subTaskEntityList;
             switch (funnel.toLowerCase()) {
                 case "sourcing":
+                    if (taskTimeEntity.getSourcing() == null) taskTimeEntity.setSourcing(new ArrayList<>());
                     subTaskEntityList = taskTimeEntity.getSourcing();
                     break;
                 case "credit":
+                    if (taskTimeEntity.getCredit() == null) taskTimeEntity.setCredit(new ArrayList<>());
                     subTaskEntityList = taskTimeEntity.getCredit();
                     break;
                 case "conversion":
+                    if (taskTimeEntity.getConversion() == null) taskTimeEntity.setConversion(new ArrayList<>());
                     subTaskEntityList = taskTimeEntity.getConversion();
                     break;
                 case "fulfillment":
+                    if (taskTimeEntity.getFulfillment() == null) taskTimeEntity.setFulfillment(new ArrayList<>());
                     subTaskEntityList = taskTimeEntity.getFulfillment();
                     break;
                 default:
@@ -100,27 +119,29 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
                     return;
             }
 
-            // Find an existing subtask with the same taskId
+            // Find an existing subtask or create a new one
             SubTaskEntity subTaskEntity = subTaskEntityList.stream()
                     .filter(t -> t.getTaskId().equals(taskId))
                     .findFirst()
                     .orElseGet(() -> {
                         logger.info("Creating new subtask for taskId: {}", taskId);
-                        SubTaskEntity newSubTaskEntity = new SubTaskEntity(taskId);
+                        SubTaskEntity newSubTaskEntity = new SubTaskEntity(taskId, createdAt);
                         subTaskEntityList.add(newSubTaskEntity);
                         return newSubTaskEntity;
                     });
 
-            // Update subtask status
-            subTaskEntity.updateStatus(status);
+            // Update status and timestamps
+            subTaskEntity.updateStatus(status, updatedAt);
 
             // Save updated entity
             taskExecutionTimeRepository.save(taskTimeEntity);
-            logger.info("Task execution time updated successfully for applicationId={}, entityId={}, taskId={}",
-                    applicationId, entityId, taskId);
+
+            logger.info("Task execution time updated successfully for applicationId={}, entityId={}, taskId={}, channel={}",
+                    applicationId, entityId, taskId, channel);
 
         } catch (Exception e) {
-            logger.error("Error updating task execution time for taskId: {}, funnel: {}, status: {}", taskId, funnel, status, e);
+            logger.error("Error updating task execution time for taskId: {}, funnel: {}, status: {}, channel: {}",
+                    taskId, funnel, status, channel, e);
         }
     }
 
