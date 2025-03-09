@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/actorMetrics")
 @RequiredArgsConstructor
@@ -20,6 +22,6 @@ public class ActorController {
     @GetMapping(path = "{actorId}")
     public ResponseEntity getActorPerformance(@PathVariable String actorId){
         log.info("ActorController [getActorPerformance] {}", actorId);
-        return ResponseEntity.ok().body(actorService.getActorMetrics(actorId));
+        return ResponseEntity.ok().body(actorService.getAverageDuration(actorId));
     }
 }

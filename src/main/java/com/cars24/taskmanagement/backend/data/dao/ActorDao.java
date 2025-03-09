@@ -8,5 +8,5 @@ import java.util.List;
 @Service
 public interface ActorDao {
 
-    public ActorEntity getActor(String actorId);
+    public List<ActorEntity> getApplications(String actorId);
 }

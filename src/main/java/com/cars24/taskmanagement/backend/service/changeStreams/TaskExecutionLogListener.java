@@ -13,6 +13,9 @@ import org.bson.BsonDocument;
 import org.bson.types.Binary;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -28,7 +31,7 @@ public class TaskExecutionLogListener {
 
     @PostConstruct
     public void watchTaskExecutionLog() {
-        log.info("TaskExecutionLogListener [watchTaskExecutionLog] started ...");
+        log.info("TaskExecutionLogListener started...");
 
         new Thread(() -> {
             MongoCollection<Document> collection = mongoTemplate.getCollection("task_execution_log");
@@ -58,7 +61,6 @@ public class TaskExecutionLogListener {
                 String actorId = fullDocument.getString("actorId");
                 String applicationId = fullDocument.getString("applicationId");
                 String taskId = fullDocument.getString("taskId");
-
                 updateActorMetrics(actorId, applicationId, taskId);
             }
         }
@@ -66,106 +68,20 @@ public class TaskExecutionLogListener {
 
     private void updateActorMetrics(String actorId, String applicationId, String taskId) {
         log.info("TaskExecutionLogListener [updateActorMetrics] {} {} {}", actorId, applicationId, taskId);
+        Query query = new Query(Criteria.where("applicationId").is(applicationId).and("actorId").is(actorId));
+        Document existingDocument = mongoTemplate.findOne(query, Document.class, "actor_metrics");
 
-        Document query = new Document("actorId", actorId).append("applicationId", applicationId);
-        Document existingDocument = mongoTemplate.getCollection("actor_metrics").find(query).first();
-
-        log.info("TaskExecutionLogListener [updateActorMetrics] {}", existingDocument);
-
-        Document latestLogEntry = mongoTemplate.getCollection("task_execution_log")
-                .find(new Document("actorId", actorId).append("applicationId", applicationId))
-                .sort(new Document("updatedAt", -1)) // Sort by updatedAt instead of timestamp
-                .limit(1)
-                .first();
-
-        Instant lastUpdatedAt = null;
-
-        if (latestLogEntry != null) {
-            Date updatedAtDate = latestLogEntry.getDate("updatedAt");
-            if (updatedAtDate != null) {
-                lastUpdatedAt = updatedAtDate.toInstant();
-            } else {
-                Date createdAtDate = latestLogEntry.getDate("createdAt");
-                if (createdAtDate != null) {
-                    lastUpdatedAt = createdAtDate.toInstant();
-                }
-            }
-        }
-
-        if (lastUpdatedAt == null) {
-            lastUpdatedAt = Instant.now();
-        }
-
-
-        if (existingDocument == null) {
-            Document newEntry = new Document()
-                    .append("applicationId", applicationId)
-                    .append("actorId", actorId)
-                    .append("tasks", List.of(new Document()
-                            .append("taskId", taskId)
-                            .append("visited", 1)
-                            .append("duration", 0)
-                    ))
-                    .append("totalDuration", 0)
-                    .append("lastUpdatedAt", lastUpdatedAt);
-
-            mongoTemplate.getCollection("actor_metrics").insertOne(newEntry);
-        } else {
+        long newTotalDuration = 0;
+        if (existingDocument != null) {
             List<Document> tasks = existingDocument.getList("tasks", Document.class);
-
-            log.info("TaskExecutionLogListener [updateActorMetrics] {}", tasks);
-
-            boolean taskExists = false;
-            int visited = 1;
-            long duration = 0;
-
-            for (Document task : tasks) {
-                if (task.getString("taskId").equals(taskId)) {
-                    visited = task.getInteger("visited", 0) + 1;
-
-                    Object durationObj = task.get("duration");
-                    if (durationObj instanceof Integer) {
-                        duration = ((Integer) durationObj).longValue();
-                    } else if (durationObj instanceof Long) {
-                        duration = (Long) durationObj;
-                    }
-                    taskExists = true;
-                    break;
-                }
-            }
-
-            if(taskExists) {
-                mongoTemplate.getCollection("actor_metrics").updateOne(
-                        new Document("actorId", actorId)
-                                .append("applicationId", applicationId)
-                                .append("tasks.taskId", taskId),
-                        new Document("$inc", new Document("tasks.$.visited", 1))
-                                .append("$set", new Document("tasks.$.duration", duration))
-                );
-            } else {
-                mongoTemplate.getCollection("actor_metrics").updateOne(
-                        query,
-                        new Document("$push", new Document("tasks", new Document()
-                                .append("taskId", taskId)
-                                .append("visited", visited)
-                                .append("duration", duration)))
-                );
-            }
-
-            Document updatedDocument = mongoTemplate.getCollection("actor_metrics").find(query).first();
-            log.info("TaskExecutionLogListener [updateActorMetrics] updatedDocument : {}", updatedDocument);
-
-            List<Document> updatedTasks = updatedDocument.getList("tasks", Document.class);
-            long newTotalDuration = updatedTasks.stream()
+            newTotalDuration = tasks.stream()
                     .mapToLong(t -> t.get("duration", Number.class).longValue())
                     .sum();
-
-            mongoTemplate.getCollection("actor_metrics").updateOne(
-                    query,
-                    new Document("$set", new Document("totalDuration", newTotalDuration)
-                            .append("lastUpdatedAt", lastUpdatedAt))
-            );
         }
+
+        mongoTemplate.updateFirst(query, new Update()
+                .set("totalDuration", newTotalDuration)
+                .set("lastUpdatedAt", Date.from(Instant.now())), "actor_metrics");
     }
 
     private void storeResumeToken(BsonDocument resumeToken) {
