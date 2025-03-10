@@ -16,5 +16,11 @@ public interface ActorService {
 
     public Map<String, Integer> taskFrequency(String actorId);
 
+    public Map<String, Double> getTaskTimeAcrossApplications(String actorId);
+
+    public int getTasksCompleted(String actorId);
+
+    public List<Map<String, String>> getTasksAssigned(String actorId);
+
     public Map<String, Object> getActorMetrics(String actorId);
 }
