@@ -7,7 +7,7 @@ import java.util.Map;
 
 @Data
 @AllArgsConstructor
-public class SlaResponse {
+public class SlaTimeResponse {
     private Map<String, Double> averageTimePerFunnel;
     private Map<String, Double> averageTimePerTask;
     private Map<String, Long> totalSendbacksPerTask;
