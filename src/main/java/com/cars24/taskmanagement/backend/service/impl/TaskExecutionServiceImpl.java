@@ -119,7 +119,7 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
                     return;
             }
 
-            // Find an existing subtask or create a new one
+
             SubTaskEntity subTaskEntity = subTaskEntityList.stream()
                     .filter(t -> t.getTaskId().equals(taskId))
                     .findFirst()
@@ -130,10 +130,10 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
                         return newSubTaskEntity;
                     });
 
-            // Update status and timestamps
+
             subTaskEntity.updateStatus(status, updatedAt);
 
-            // Save updated entity
+
             taskExecutionTimeRepository.save(taskTimeEntity);
 
             logger.info("Task execution time updated successfully for applicationId={}, entityId={}, taskId={}, channel={}",

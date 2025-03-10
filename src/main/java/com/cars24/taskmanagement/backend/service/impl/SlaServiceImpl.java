@@ -3,6 +3,7 @@ package com.cars24.taskmanagement.backend.service.impl;
 import com.cars24.taskmanagement.backend.data.dao.impl.SlaDaoImpl;
 import com.cars24.taskmanagement.backend.data.entity.SubTaskEntity;
 import com.cars24.taskmanagement.backend.data.entity.TaskExecutionTimeEntity;
+import com.cars24.taskmanagement.backend.data.exception.SlaException;
 import com.cars24.taskmanagement.backend.data.response.SlaResponse;
 import com.cars24.taskmanagement.backend.service.SlaService;
 import org.springframework.stereotype.Service;
@@ -21,7 +22,7 @@ public class SlaServiceImpl implements SlaService {
     public SlaResponse getSlaMetricsByChannel(String channel) {
         List<TaskExecutionTimeEntity> executions = slaDao.getTasksByChannel(channel);
         if (executions.isEmpty()) {
-            throw new RuntimeException("No data found for channel: " + channel);
+            throw new SlaException("No data found for channel: " + channel);
         }
 
         Map<String, List<Long>> taskDurations = new HashMap<>();
@@ -45,26 +46,42 @@ public class SlaServiceImpl implements SlaService {
             });
         }
 
-        // Compute average task times
-        Map<String, Double> avgTaskTimes = taskDurations.entrySet().stream()
+
+        Map<String, String> avgTaskTimes = taskDurations.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey,
-                        entry -> entry.getValue().stream().mapToLong(Long::longValue).average().orElse(0.0)));
+                        entry -> SlaResponse.formatDuration(
+                                (long) entry.getValue().stream().mapToLong(Long::longValue).average().orElse(0.0))));
 
-        // Compute funnel times by summing average task times
-        Map<String, Double> avgFunnelTimes = funnelToTaskMapping.entrySet().stream()
+
+        Map<String, String> avgFunnelTimes = funnelToTaskMapping.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey,
-                        entry -> entry.getValue().stream()
-                                .mapToDouble(taskId -> avgTaskTimes.getOrDefault(taskId, 0.0))
-                                .sum()));
+                        entry -> SlaResponse.formatDuration(
+                                (long) entry.getValue().stream()
+                                        .mapToDouble(taskId -> taskDurations.getOrDefault(taskId, List.of(0L)).stream().mapToLong(Long::longValue).average().orElse(0.0))
+                                        .sum())));
 
-        // Compute `averageTAT` as the sum of all funnel times
-        double averageTAT = avgFunnelTimes.values().stream().mapToDouble(Double::doubleValue).sum();
 
-        // Compute average sendbacks and round to the nearest integer
+        long totalTAT = (long) avgFunnelTimes.values().stream()
+                .mapToDouble(time -> {
+                    String[] parts = time.split(" ");
+                    long totalMillis = 0;
+                    for (int i = 0; i < parts.length; i += 2) {
+                        long num = Long.parseLong(parts[i]);
+                        switch (parts[i + 1]) {
+                            case "days" -> totalMillis += num * 24 * 3600 * 1000;
+                            case "hrs" -> totalMillis += num * 3600 * 1000;
+                            case "min" -> totalMillis += num * 60 * 1000;
+                            case "sec" -> totalMillis += num * 1000;
+                        }
+                    }
+                    return totalMillis;
+                }).sum();
+
+
         Map<String, Long> sendbackCounts = taskSendbacks.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey,
                         entry -> Math.round(entry.getValue().stream().mapToLong(Long::longValue).average().orElse(0.0))));
 
-        return new SlaResponse(avgFunnelTimes, avgTaskTimes, sendbackCounts, averageTAT);
+        return new SlaResponse(avgFunnelTimes, avgTaskTimes, sendbackCounts, SlaResponse.formatDuration(totalTAT));
     }
 }
