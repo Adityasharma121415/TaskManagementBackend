@@ -3,7 +3,7 @@ package com.cars24.taskmanagement.backend.service.impl;
 import com.cars24.taskmanagement.backend.data.dao.impl.SlaDaoImpl;
 import com.cars24.taskmanagement.backend.data.entity.SubTaskEntity;
 import com.cars24.taskmanagement.backend.data.entity.TaskExecutionTimeEntity;
-import com.cars24.taskmanagement.backend.data.exception.SlaException;
+import com.cars24.taskmanagement.backend.exceptions.SlaException;
 import com.cars24.taskmanagement.backend.data.response.SlaResponse;
 import com.cars24.taskmanagement.backend.service.SlaService;
 import org.springframework.stereotype.Service;

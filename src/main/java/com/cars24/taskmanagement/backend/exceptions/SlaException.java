@@ -1,4 +1,4 @@
-package com.cars24.taskmanagement.backend.data.exception;
+package com.cars24.taskmanagement.backend.exceptions;
 
 
 public class SlaException extends RuntimeException {
