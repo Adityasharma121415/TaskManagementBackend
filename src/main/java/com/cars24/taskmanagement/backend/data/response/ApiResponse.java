@@ -10,6 +10,9 @@ import lombok.NoArgsConstructor;
 public class ApiResponse {
     private int statusCode;
     private String message;
+    private String service;
+    private boolean success;
+    private Object data;
 
     public String getService() {
         return service;
@@ -51,7 +54,5 @@ public class ApiResponse {
         this.data = data;
     }
 
-    private String service;
-    private boolean success;
-    private Object data;
+
 }

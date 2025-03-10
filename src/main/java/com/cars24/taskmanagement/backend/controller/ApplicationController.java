@@ -1,9 +1,13 @@
 package com.cars24.taskmanagement.backend.controller;
 
 
+import com.cars24.taskmanagement.backend.data.response.ApiResponse;
+import com.cars24.taskmanagement.backend.data.response.dto.TaskGroupedResponse;
+import com.cars24.taskmanagement.backend.data.response.dto.TaskResponse;
 import com.cars24.taskmanagement.backend.service.impl.ApplicationServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,15 +20,21 @@ public class ApplicationController {
 
     private final ApplicationServiceImpl applicationService;
 
-    // Add explicit constructor for dependency injection
     @Autowired
     public ApplicationController(ApplicationServiceImpl applicationService) {
         this.applicationService = applicationService;
     }
 
     @GetMapping("/{applicationId}")
-    public Map<String, List<Map<String, Object>>> getTasksByApplicationId(@PathVariable String applicationId) {
-        return applicationService.getTasksGroupedByFunnel(applicationId);
+    public ApiResponse getTasksByApplicationId(@PathVariable String applicationId) {
+        TaskGroupedResponse responseData = new TaskGroupedResponse(applicationService.getTasksGroupedByFunnel(applicationId));
+        return new ApiResponse(
+                HttpStatus.OK.value(),
+                "Tasks fetched successfully",
+                "TaskManagementService",
+                true,
+                responseData
+        );
     }
 }
 
