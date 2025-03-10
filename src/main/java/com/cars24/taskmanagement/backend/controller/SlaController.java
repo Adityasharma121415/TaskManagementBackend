@@ -14,6 +14,6 @@ public class SlaController {
 
     @GetMapping("/time/{channel}")
     public SlaResponse getSlaByChannel(@PathVariable String channel) {
-        return slaService.getSlaMonitoring(channel);
+        return slaService.getSlaMetricsByChannel(channel);
     }
 }
