@@ -32,12 +32,9 @@ public class ApplicationController {
     }
 
     @GetMapping(value = "/{applicationId}", produces = MediaType.APPLICATION_JSON_VALUE)
-    @ResponseBody
-    public ResponseEntity<ApplicationTasksResponse> getTasksByApplicationId(
+    public @ResponseBody ResponseEntity<ApplicationTasksResponse> getTasksByApplicationId(
             @PathVariable String applicationId) {
         logger.info("Received request to fetch tasks for application ID: {}", applicationId);
-
-        // Service now returns ResponseEntity directly
         return applicationService.getTasksGroupedByFunnel(applicationId);
     }
 }

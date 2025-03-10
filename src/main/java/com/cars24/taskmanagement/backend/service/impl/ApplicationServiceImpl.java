@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
@@ -18,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.stream.Collectors;
+
 
 
 @Service
@@ -33,79 +35,54 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Override
     public ResponseEntity<ApplicationTasksResponse> getTasksGroupedByFunnel(String applicationId) {
-        logger.debug("Fetching tasks for application ID: {}", applicationId);
+        List<TaskExecutionLog> logs = applicationDao.findByApplicationId(applicationId);
+        logger.info("Found {} task execution logs for application ID: {}", logs.size(), applicationId);
 
-        try {
-            List<TaskExecutionLog> logs = applicationDao.findByApplicationId(applicationId);
-           logger.info("Found {} task execution logs for application ID: {}", logs.size(), applicationId);
-
-            if (logs.isEmpty()) {
-                logger.warn("No tasks found for application ID: {}", applicationId);
-                return ResponseEntity.ok(new ApplicationTasksResponse(Collections.emptyList()));
-            }
-
-            // Group logs by funnel
-            Map<String, List<TaskExecutionLog>> logsByFunnel = logs.stream()
-                    .collect(Collectors.groupingBy(
-                            log -> log.getFunnel() != null ? log.getFunnel() : "UNKNOWN"
-                    ));
-
-            // Calculate minimum order for each funnel (for sorting funnels)
-            Map<String, Integer> funnelMinOrders = calculateFunnelMinOrders(logs);
-
-            // Create and populate funnel groups
-            List<FunnelGroup> funnelGroups = new ArrayList<>();
-
-            funnelMinOrders.entrySet().stream()
-                    .sorted(Map.Entry.comparingByValue())
-                    .forEach(entry -> {
-                        String funnelName = entry.getKey();
-                        int funnelOrder = entry.getValue();
-                        List<TaskExecutionLog> funnelLogs = logsByFunnel.get(funnelName);
-
-                        FunnelGroup funnelGroup = new FunnelGroup();
-                        funnelGroup.setFunnelName(funnelName);
-                        funnelGroup.setOrder(funnelOrder);
-                        funnelGroup.setTasks(processTasksInFunnel(funnelLogs));
-
-                        funnelGroups.add(funnelGroup);
-                    });
-
-            ApplicationTasksResponse response = new ApplicationTasksResponse(funnelGroups);
-            return ResponseEntity.ok(response);
-
-        } catch (DataAccessException e) {
-            //logger.error("Data access error while fetching tasks for application ID: {}", applicationId, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApplicationTasksResponse(e.getMessage()));
-        } catch (Exception e) {
-            //logger.error("Unexpected error while fetching tasks for application ID: {}", applicationId, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApplicationTasksResponse("An unexpected error occurred: " + e.getMessage()));
+        if (logs.isEmpty()) {
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new ApplicationTasksResponse(Collections.emptyList()));
         }
+
+        Map<String, List<TaskExecutionLog>> logsByFunnel = logs.stream()
+                .collect(Collectors.groupingBy(log -> log.getFunnel() != null ? log.getFunnel() : "UNKNOWN"));
+
+        Map<String, Integer> funnelMinOrders = calculateFunnelMinOrders(logs);
+        List<FunnelGroup> funnelGroups = buildFunnelGroups(logsByFunnel, funnelMinOrders);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new ApplicationTasksResponse(funnelGroups));
+    }
+
+    private List<FunnelGroup> buildFunnelGroups(Map<String, List<TaskExecutionLog>> logsByFunnel,
+                                                Map<String, Integer> funnelMinOrders) {
+        List<FunnelGroup> funnelGroups = new ArrayList<>();
+
+        funnelMinOrders.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue())
+                .forEach(entry -> {
+                    String funnelName = entry.getKey();
+                    FunnelGroup funnelGroup = new FunnelGroup();
+                    funnelGroup.setFunnelName(funnelName);
+                    funnelGroup.setOrder(entry.getValue());
+                    funnelGroup.setTasks(processTasksInFunnel(logsByFunnel.get(funnelName)));
+                    funnelGroups.add(funnelGroup);
+                });
+
+        return funnelGroups;
     }
 
     private List<TaskInfo> processTasksInFunnel(List<TaskExecutionLog> funnelLogs) {
-        // Group logs by taskId
-        Map<String, List<TaskExecutionLog>> logsByTaskId = funnelLogs.stream()
-                .collect(Collectors.groupingBy(TaskExecutionLog::getTaskId));
-
-        // Create TaskInfo objects for each task
-        List<TaskInfo> tasks = new ArrayList<>();
-
-        logsByTaskId.forEach((taskId, taskLogs) -> {
-            TaskInfo taskInfo = createTaskInfo(taskId, taskLogs);
-            tasks.add(taskInfo);
-        });
-
-        // Sort tasks by order
-        tasks.sort(Comparator.comparingInt(TaskInfo::getOrder));
-
-        return tasks;
+        return funnelLogs.stream()
+                .collect(Collectors.groupingBy(TaskExecutionLog::getTaskId))
+                .entrySet().stream()
+                .map(entry -> createTaskInfo(entry.getKey(), entry.getValue()))
+                .sorted(Comparator.comparingInt(TaskInfo::getOrder))
+                .collect(Collectors.toList());
     }
 
     private TaskInfo createTaskInfo(String taskId, List<TaskExecutionLog> taskLogs) {
-        // Get first log for task details
         TaskExecutionLog firstLog = taskLogs.get(0);
 
         TaskInfo taskInfo = new TaskInfo();
@@ -114,7 +91,6 @@ public class ApplicationServiceImpl implements ApplicationService {
         taskInfo.setHandledBy(firstLog.getHandledBy());
         taskInfo.setCreatedAt(firstLog.getCreatedAt());
 
-        // Create status history
         List<StatusUpdate> statusUpdates = taskLogs.stream()
                 .sorted(Comparator.comparing(TaskExecutionLog::getUpdatedAt))
                 .map(log -> {
@@ -126,7 +102,6 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .collect(Collectors.toList());
 
         taskInfo.setStatusHistory(statusUpdates);
-
         return taskInfo;
     }
 

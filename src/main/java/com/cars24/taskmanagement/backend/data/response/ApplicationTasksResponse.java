@@ -1,11 +1,13 @@
 package com.cars24.taskmanagement.backend.data.response;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 
 import java.util.Date;
 import java.util.List;
 
 @Data
+
 public class ApplicationTasksResponse {
     private List<FunnelGroup> funnels;
     private boolean success;
