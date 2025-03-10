@@ -17,8 +17,8 @@ public class ActorDaoImpl implements ActorDao {
     private final ActorRepository actorRepository;
 
     @Override
-    public ActorEntity getActor(String actorId) {
-        log.info("ActorDaoImpl [getActor] {}", actorId);
-        return actorRepository.findByActorId(actorId);
+    public List<ActorEntity> getApplications(String actorId) {
+        log.info("ActorDaoImpl [getDuration] {}", actorId);
+        return actorRepository.findAllByActorId(actorId);
     }
 }
