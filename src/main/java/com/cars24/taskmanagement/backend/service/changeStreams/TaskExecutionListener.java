@@ -1,5 +1,6 @@
-package com.cars24.taskmanagement.backend.service.impl;
+package com.cars24.taskmanagement.backend.service.changeStreams;
 
+import com.cars24.taskmanagement.backend.service.impl.TaskExecutionServiceImpl;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import org.bson.Document;
 import org.slf4j.Logger;
@@ -13,9 +14,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @Component
-public class TaskExecutionTimeServiceImpl {
+public class TaskExecutionListener {
 
-    private static final Logger logger = LoggerFactory.getLogger(TaskExecutionTimeServiceImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(TaskExecutionListener.class);
 
     @Autowired
     private MongoTemplate mongoTemplate;
