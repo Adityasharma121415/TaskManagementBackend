@@ -22,7 +22,7 @@ public class SubTaskEntity {
 //        this.new_time = updatedAt;
         this.new_time = createdAt;
         this.visited = 0;
-        this.sendbacks = 0;
+        this.sendbacks = -1;
     }
 
     public void updateStatus(String status, Instant updatedAt) {

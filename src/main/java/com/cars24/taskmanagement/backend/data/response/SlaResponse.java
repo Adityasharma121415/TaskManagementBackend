@@ -7,12 +7,24 @@ import java.util.Map;
 @Data
 @AllArgsConstructor
 public class SlaResponse {
-    private Map<String, String> averageTimePerFunnel;
-    private Map<String, String> averageTimePerTask;
-    private Map<String, Long> totalSendbacksPerTask;
+    private Map<String, Funnel> funnels;
     private String averageTAT;
 
+    @Data
+    @AllArgsConstructor
+    public static class Funnel {
+        private String timeTaken;
+        private Map<String, Task> tasks;
+    }
 
+    @Data
+    @AllArgsConstructor
+    public static class Task {
+        private String timeTaken;
+        private long noOfSendbacks;
+    }
+
+    // Updated formatDuration: displays the duration as days, hours, minutes, and seconds.
     public static String formatDuration(long millis) {
         long seconds = millis / 1000;
         long days = seconds / (24 * 3600);

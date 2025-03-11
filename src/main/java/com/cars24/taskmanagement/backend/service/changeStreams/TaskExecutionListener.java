@@ -2,6 +2,7 @@ package com.cars24.taskmanagement.backend.service.changeStreams;
 
 import com.cars24.taskmanagement.backend.service.impl.TaskExecutionServiceImpl;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
+import com.mongodb.client.model.changestream.FullDocument;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,7 @@ public class TaskExecutionListener {
             try {
                 mongoTemplate.getCollection("task_execution")
                         .watch()
+                        .fullDocument(FullDocument.UPDATE_LOOKUP)  // Ensure full document is returned on updates
                         .forEach(this::processChangeStreamDocument);
             } catch (Exception e) {
                 logger.error("Error in change stream processing", e);
@@ -48,28 +50,28 @@ public class TaskExecutionListener {
                 return;
             }
 
-
+            // Extract required fields
             String taskId = getString(fullDocument, "taskId");
             String status = getString(fullDocument, "status");
             String funnel = getString(fullDocument, "funnel");
             String applicationId = getString(fullDocument, "applicationId");
             String entityId = getString(fullDocument, "entityId");
-            String channel = getString(fullDocument, "channel"); // Extracting channel
+            String channel = getString(fullDocument, "channel");
 
-
+            // Validate required fields
             if (taskId == null || status == null || funnel == null || applicationId == null || entityId == null || channel == null) {
                 logger.warn("Incomplete task execution data: taskId={}, status={}, funnel={}, applicationId={}, entityId={}, channel={}",
                         taskId, status, funnel, applicationId, entityId, channel);
                 return;
             }
 
-
             Instant createdAt = getInstant(fullDocument, "createdAt");
             Instant updatedAt = getInstant(fullDocument, "updatedAt");
 
+            // Use createdAt for NEW status, updatedAt for others
             Instant eventTime = status.equalsIgnoreCase("NEW") ? createdAt : updatedAt;
 
-
+            // Call service to update task execution time
             timeService.updateTaskExecutionTime(taskId, status, createdAt, updatedAt, funnel, applicationId, entityId, channel);
         } catch (Exception e) {
             logger.error("Error processing change stream event", e);
