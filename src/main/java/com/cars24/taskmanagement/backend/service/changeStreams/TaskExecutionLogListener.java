@@ -1,6 +1,7 @@
 package com.cars24.taskmanagement.backend.service.changeStreams;
 
 import com.cars24.taskmanagement.backend.service.redisCache.RedisCacheService;
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.OperationType;
@@ -19,9 +20,12 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+
+import com.cars24.taskmanagement.backend.constants.FileConstants;
 
 @Service
 @Slf4j
@@ -33,18 +37,29 @@ public class TaskExecutionLogListener {
     @Autowired
     private RedisCacheService redisCacheService;
 
-    private static final String RESUME_TOKEN_COLLECTION = "resume_tokens";
-    private static final String RESUME_TOKEN_KEY = "change_stream_resume_token";
+    String RESUME_TOKEN_COLLECTION = FileConstants.RESUME_TOKEN_COLLECTION;
+    String RESUME_TOKEN_KEY = FileConstants.RESUME_TOKEN_KEY;
 
     @PostConstruct
     public void watchTaskExecutionLog() {
         log.info("TaskExecutionLogListener [watchTaskExecutionLog] started...");
 
         new Thread(() -> {
-            mongoTemplate.getCollection("task_execution_log")
-                    .watch(List.of())
-                    .forEach(this::processChange);
-        }).start();
+            BsonDocument resumeToken = getStoredResumeToken();
+            MongoCollection<Document> collection = mongoTemplate.getCollection("task_execution_log");
+
+            MongoCursor<ChangeStreamDocument<Document>> cursor =
+                    (resumeToken != null)
+                            ? collection.watch(List.of()).resumeAfter(resumeToken).iterator()
+                            : collection.watch(List.of()).iterator();
+
+            while(cursor.hasNext()){
+                ChangeStreamDocument<Document> change = cursor.next();
+                processChange(change);
+                storeResumeToken(change.getResumeToken());
+            }
+        }
+        ).start();
     }
 
     private void processChange(ChangeStreamDocument<Document> change) {
@@ -175,11 +190,13 @@ public class TaskExecutionLogListener {
         if (resumeToken != null) {
             log.info("TaskExecutionLogListener [storeResumeToken] {}", resumeToken);
 
-            Document tokenDocument = new Document("_id", "resume_token")
+            Document tokenDocument = new Document("_id", RESUME_TOKEN_KEY)
                     .append("token", Document.parse(resumeToken.toJson()));
 
-            mongoTemplate.getCollection("resume_tokens")
-                    .replaceOne(new Document("_id", "resume_token"), tokenDocument, new ReplaceOptions().upsert(true));
+            mongoTemplate.getCollection(RESUME_TOKEN_COLLECTION)
+                    .replaceOne(Filters.eq("_id", RESUME_TOKEN_KEY),
+                            tokenDocument,
+                            new ReplaceOptions().upsert(true));
 
         } else {
             log.warn("Attempted to store null resume token!");
@@ -187,19 +204,16 @@ public class TaskExecutionLogListener {
     }
 
     private BsonDocument getStoredResumeToken() {
-        Document tokenDocument = mongoTemplate.getCollection("resume_tokens")
-                .find(new Document("_id", "resume_token")).first();
+        Document tokenDocument = mongoTemplate.getCollection(RESUME_TOKEN_COLLECTION)
+                .find(Filters.eq("_id", RESUME_TOKEN_KEY)).first();
 
-        if (tokenDocument != null) {
+        if (tokenDocument != null && tokenDocument.containsKey("token")) {
             Object tokenObj = tokenDocument.get("token");
 
             if (tokenObj instanceof Document) {
-                BsonDocument storedToken = BsonDocument.parse(((Document) tokenObj).toJson());
+                Document tokenDoc = (Document) tokenObj;
+                BsonDocument storedToken = BsonDocument.parse(tokenDoc.toJson());
                 log.info("Retrieved stored resume token: {}", storedToken);
-                return storedToken;
-            } else if (tokenObj instanceof Binary) {
-                BsonDocument storedToken = BsonDocument.parse(new String(((Binary) tokenObj).getData()));
-                log.info("Retrieved stored resume token from Binary format: {}", storedToken);
                 return storedToken;
             } else {
                 log.warn("Unexpected resume token format: {}", tokenObj.getClass());
