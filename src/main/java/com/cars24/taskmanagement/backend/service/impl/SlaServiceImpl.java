@@ -41,7 +41,9 @@ public class SlaServiceImpl implements com.cars24.taskmanagement.backend.service
             funnels.forEach((funnelName, tasks) -> {
                 for (SubTaskEntity task : tasks) {
                     taskDurations.computeIfAbsent(task.getTaskId(), k -> new ArrayList<>()).add(task.getDuration());
-                    taskSendbacks.computeIfAbsent(task.getTaskId(), k -> new ArrayList<>()).add((long) task.getSendbacks());
+                    if (task.getSendbacks() >= 0) {
+                        taskSendbacks.computeIfAbsent(task.getTaskId(), k -> new ArrayList<>()).add((long) task.getSendbacks());
+                    }
                     // Use LinkedHashSet here to preserve the insertion order.
                     funnelToTaskMapping.computeIfAbsent(funnelName, k -> new LinkedHashSet<>()).add(task.getTaskId());
                 }
