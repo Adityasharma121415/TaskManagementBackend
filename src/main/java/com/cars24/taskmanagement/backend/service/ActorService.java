@@ -4,15 +4,16 @@ import com.cars24.taskmanagement.backend.data.entity.ActorEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
 @Service
 public interface ActorService {
 
-    public List<ActorEntity> getApplications(String actorId);
+    public void getApplications(String actorId, int days);
 
-    public Map<String, Long> getAverageDuration(String actorId);
+//    public Map<String, Long> getAverageDuration(String actorId, int days);
 
     public Map<String, Integer> taskFrequency(String actorId);
 
@@ -22,5 +23,9 @@ public interface ActorService {
 
     public List<Map<String, String>> getTasksAssigned(String actorId);
 
-    public Map<String, Object> getActorMetrics(String actorId);
+    public Map<String, Object> getActorMetrics(String actorId, int days);
+
+    public Map<String, Double> getAverageTaskTime(String actorId);
+
+    public Date getPastDate(int days);
 }

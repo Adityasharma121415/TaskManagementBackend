@@ -10,10 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.stream.Task;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -22,55 +19,65 @@ public class ActorServiceImpl implements ActorService {
 
     private final ActorDaoImpl actorDao;
 
+    private List<ActorEntity> documents = new ArrayList<>();
+
     @Override
-    public List<ActorEntity> getApplications(String actorId) {
-        return actorDao.getApplications(actorId);
+    public void getApplications(String actorId, int days) {
+        log.info("ActorServiceImpl [getApplications] {} {}", actorId, days);
+        Date pastDate = getPastDate(days);
+        documents = actorDao.findAllByActorIdAndLastUpdatedAtAfter(actorId, pastDate);
     }
 
     @Override
-    public Map<String, Long> getAverageDuration(String actorId){
-        log.info("ActorServiceImpl [getTotalDuration] {}", actorId);
-
-        Map<String, Long> response = new HashMap<>();
-        List<ActorEntity> documents = getApplications(actorId);
-
-        for(ActorEntity document : documents){
-            String applicationId = document.getApplicationId();
-            Long applicationDuration = document.getTotalDuration();
-
-            int visited = 0;
-
-            for(TaskEntity task : document.getTasks()){
-                visited += (task.getVisited());
-            }
-
-            Long averageDuration = 0L;
-            if(visited > 0){
-                averageDuration = applicationDuration/visited;
-            }
-            else{
-                throw new DataProcessingException("Visited count cannot be zero for applicationId: " + applicationId);
-            }
-            response.put(applicationId, averageDuration);
-        }
-        return response;
+    public Date getPastDate(int days) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(Calendar.DAY_OF_MONTH, -days);
+        return calendar.getTime();
     }
+
+//    @Override
+//    public Map<String, Long> getAverageDuration(String actorId){
+//        log.info("ActorServiceImpl [getTotalDuration] {}", actorId);
+//
+//        Map<String, Long> response = new HashMap<>();
+//        List<ActorEntity> documents = getApplications(actorId);
+//
+//        for(ActorEntity document : documents){
+//            String applicationId = document.getApplicationId();
+//            Long applicationDuration = document.getTotalDuration();
+//
+//            int visited = 0;
+//
+//            for(TaskEntity task : document.getTasks()){
+//                visited += (task.getVisited());
+//            }
+//
+//            Long averageDuration = 0L;
+//            if(visited > 0){
+//                averageDuration = applicationDuration/visited;
+//            }
+//            else{
+//                throw new DataProcessingException("Visited count cannot be zero for applicationId: " + applicationId);
+//            }
+//            response.put(applicationId, averageDuration);
+//        }
+//        return response;
+//    }
 
     @Override
     public Map<String, Integer> taskFrequency(String actorId) {
         log.info("ActorServiceImpl [getTotalDuration] {}", actorId);
 
         Map<String, Integer> response = new HashMap<>();
-        List<ActorEntity> documents = getApplications(actorId);
 
         for(ActorEntity document : documents){
             List<TaskEntity> tasks = document.getTasks();
             for(TaskEntity task : tasks){
                 String taskId = task.getTaskId();
-                response.put(taskId, response.getOrDefault(taskId, 0) + 1);
+                int visited = task.getVisited();
+                response.put(taskId, response.getOrDefault(taskId, 0) + visited);
             }
         }
-
         return response;
     }
 
@@ -79,7 +86,6 @@ public class ActorServiceImpl implements ActorService {
         log.info("ActorServiceImpl [getTaskTimeAcrossApplications] {}", actorId);
 
         Map<String, Double> taskTimeMap = new HashMap<>();
-        List<ActorEntity> documents = getApplications(actorId);
 
         for (ActorEntity document : documents){
             for(TaskEntity task : document.getTasks()){
@@ -97,7 +103,6 @@ public class ActorServiceImpl implements ActorService {
         log.info("ActorServiceImpl [getTasksCompleted] {}", actorId);
 
         int tasksCompleted = 0;
-        List<ActorEntity> documents = getApplications(actorId);
 
         for(ActorEntity document : documents){
             tasksCompleted += document.getTasks().size();
@@ -110,7 +115,6 @@ public class ActorServiceImpl implements ActorService {
         log.info("ActorServiceImpl [getTasksAssigned] {}", actorId);
 
         List<Map<String, String>> tasksAssigned = new ArrayList<>();
-        List<ActorEntity> documents = getApplications(actorId);
 
         for(ActorEntity document : documents){
             String applicationId = document.getApplicationId();
@@ -127,20 +131,44 @@ public class ActorServiceImpl implements ActorService {
     }
 
     @Override
-    public Map<String, Object> getActorMetrics(String actorId) {
+    public Map<String, Double> getAverageTaskTime(String actorId){
+        log.info("ActorServiceImpl [getActorMetrics] {}", actorId);
+
+        Map<String, Double> response = new HashMap<>();
+
+        Map<String, Integer> taskFrequency = taskFrequency(actorId);
+        Map<String, Double> taskTimeAcrossApplications = getTaskTimeAcrossApplications(actorId);
+
+        for (Map.Entry<String, Integer> entry : taskFrequency.entrySet()) {
+            String taskId = entry.getKey();
+            int visited = entry.getValue();
+            Double time = taskTimeAcrossApplications.get(taskId);
+
+            Double average = time / visited;
+            response.put(taskId, average);
+        }
+
+        return response;
+    }
+
+    @Override
+    public Map<String, Object> getActorMetrics(String actorId, int days) {
         log.info("ActorServiceImpl [getActorMetrics] {}", actorId);
 
         Map<String, Object> response = new HashMap<>();
 
-        Map<String, Long> averageDuration = getAverageDuration(actorId);
+        getApplications(actorId, days);
+
+//        Map<String, Long> averageDuration = getAverageDuration(actorId);
         Map<String, Integer> taskFrequency = taskFrequency(actorId);
         Map<String, Double> taskTimeAcrossApplications = getTaskTimeAcrossApplications(actorId);
+        Map<String, Double> averageTaskTime = getAverageTaskTime(actorId);
         int totalTasksCompleted = getTasksCompleted(actorId);
         List<Map<String, String>> tasksAssigned = getTasksAssigned(actorId);
 
-        if(averageDuration == null){
-            log.warn("ActorServiceImpl [getActorMetrics] : averageDuration is empty");
-        }
+//        if(averageDuration == null){
+//            log.warn("ActorServiceImpl [getActorMetrics] : averageDuration is empty");
+//        }
         if(taskFrequency == null){
             log.warn("ActorServiceImpl [getActorMetrics] : taskFrequency is empty");
         }
@@ -153,10 +181,14 @@ public class ActorServiceImpl implements ActorService {
         if(tasksAssigned == null){
             log.warn("ActorServiceImpl [getActorMetrics] : tasksAssigned is empty");
         }
+        if(averageTaskTime == null){
+            log.warn("ActorServiceImpl [getActorMetrics] : getAverageTaskTime is empty");
+        }
 
-        response.put("average_duration", averageDuration);
+//        response.put("average_duration", averageDuration);
         response.put("task_frequency", taskFrequency);
         response.put("task_time_across_applications", taskTimeAcrossApplications);
+        response.put("average_task_time", averageTaskTime);
         response.put("total_tasks_completed", totalTasksCompleted);
         response.put("tasks_assigned", tasksAssigned);
 
