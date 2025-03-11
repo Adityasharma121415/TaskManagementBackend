@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
 import java.util.List;
 
 @Service
@@ -17,8 +18,8 @@ public class ActorDaoImpl implements ActorDao {
     private final ActorRepository actorRepository;
 
     @Override
-    public List<ActorEntity> getApplications(String actorId) {
-        log.info("ActorDaoImpl [getDuration] {}", actorId);
-        return actorRepository.findAllByActorId(actorId);
+    public List<ActorEntity> findAllByActorIdAndLastUpdatedAtAfter(String actorId, Date filteredDate) {
+        log.info("ActorDaoImpl [getDuration] {} {}", actorId, filteredDate);
+        return actorRepository.findAllByActorIdAndLastUpdatedAtAfter(actorId, filteredDate);
     }
 }
