@@ -1,15 +1,11 @@
 package com.cars24.taskmanagement.backend.service.impl;
-
-
 import com.cars24.taskmanagement.backend.data.dao.ApplicationDao;
 import com.cars24.taskmanagement.backend.data.entity.TaskExecutionLog;
-
 import com.cars24.taskmanagement.backend.data.response.dto.StatusLogResponse;
 import com.cars24.taskmanagement.backend.data.response.dto.TaskResponse;
 import com.cars24.taskmanagement.backend.service.ApplicationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -22,7 +18,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     public Map<String, List<TaskResponse>> getTasksGroupedByFunnel(String applicationId) {
         List<TaskExecutionLog> tasks = taskExecutionDao.findByApplicationId(applicationId);
 
-        // Determine the minimum order for each funnel
+
         Map<String, Integer> funnelMinOrders = tasks.stream()
                 .collect(Collectors.groupingBy(
                         task -> Optional.ofNullable(task.getFunnel()).orElse("UNKNOWN"),
