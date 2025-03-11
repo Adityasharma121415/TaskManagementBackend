@@ -9,4 +9,6 @@ public class FileConstants {
     public static final int MAX_IDLE = 5;
     public static final int MIN_IDLE = 2;
     public static final int TOTAL_CONNECTIONS = 10;
+    public static final String RESUME_TOKEN_COLLECTION = "resume_tokens";
+    public static final String RESUME_TOKEN_KEY = "change_stream_resume_token";
 }
