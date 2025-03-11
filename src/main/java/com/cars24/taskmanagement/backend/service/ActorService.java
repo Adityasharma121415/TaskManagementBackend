@@ -17,15 +17,23 @@ public interface ActorService {
 
     public Map<String, Integer> taskFrequency(String actorId);
 
+    Map<String, Integer> taskFrequencyThreshold();
+
     public Map<String, Double> getTaskTimeAcrossApplications(String actorId);
+
+    Map<String, Double> thresholdTaskTimeAcrossApplications();
 
     public int getTasksCompleted(String actorId);
 
     public List<Map<String, String>> getTasksAssigned(String actorId);
+
+    Map<String, Double> thresholdAverageTaskTime();
 
     public Map<String, Object> getActorMetrics(String actorId, int days);
 
     public Map<String, Double> getAverageTaskTime(String actorId);
 
     public Date getPastDate(int days);
+
+    public void getAllApplications(int days);
 }

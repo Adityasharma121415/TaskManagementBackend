@@ -22,4 +22,10 @@ public class ActorDaoImpl implements ActorDao {
         log.info("ActorDaoImpl [getDuration] {} {}", actorId, filteredDate);
         return actorRepository.findAllByActorIdAndLastUpdatedAtAfter(actorId, filteredDate);
     }
+
+    @Override
+    public List<ActorEntity> findAllApplications(Date pastDate) {
+        log.info("ActorDaoImpl [findAllApplications] {}", pastDate);
+        return actorRepository.findAllByLastUpdatedAtAfter(pastDate);
+    }
 }

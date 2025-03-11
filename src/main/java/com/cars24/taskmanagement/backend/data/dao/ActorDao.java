@@ -12,4 +12,6 @@ public interface ActorDao {
 //    public List<ActorEntity> getApplications(String actorId, int days);
 
     public List<ActorEntity> findAllByActorIdAndLastUpdatedAtAfter(String actorId, Date lastUpdatedAt);
+
+    public List<ActorEntity> findAllApplications(Date lastUpdatedAt);
 }
