@@ -10,7 +10,7 @@ import java.util.Map;
 
 
 @Data
-@Document(collection = "task_execution_log")
+@Document(collection = "modified_task_execution_log")
 public class TaskExecutionLog {
 
 
@@ -19,6 +19,24 @@ public class TaskExecutionLog {
     private String parentId;
     private String taskId;
     private String version;
+    private int order;
+    private String templateId;
+    private String templateVersion;
+    private String funnel;
+    private String channel;
+    private String productType;
+    private String applicationId;
+    private String entityIdentifier;
+    private String entityType;
+    private String actorType;
+    private String actorId;
+    private String status;
+    private String executionType;
+    private Map<String, Object> metadata;
+    private Map<String, Object> inputResourceValueMap;
+    private Date createdAt;
+    private Date updatedAt;
+    private String handledBy;
 
     public int getOrder() {
         return order;
@@ -196,22 +214,4 @@ public class TaskExecutionLog {
         this.handledBy = handledBy;
     }
 
-    private int order;
-    private String templateId;
-    private String templateVersion;
-    private String funnel;
-    private String channel;
-    private String productType;
-    private String applicationId;
-    private String entityIdentifier;
-    private String entityType;
-    private String actorType;
-    private String actorId;
-    private String status;
-    private String executionType;
-    private Map<String, Object> metadata;
-    private Map<String, Object> inputResourceValueMap;
-    private Date createdAt;
-    private Date updatedAt;
-    private String handledBy;
 }

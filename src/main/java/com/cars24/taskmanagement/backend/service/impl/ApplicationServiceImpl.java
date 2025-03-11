@@ -103,6 +103,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         details.setStatus(log.getStatus());
 
         details.setUpdatedAt(log.getUpdatedAt());
+        details.setMetadata(log.getMetadata());
 
         return details;
     }

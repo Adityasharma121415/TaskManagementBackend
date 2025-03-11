@@ -16,8 +16,23 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TaskDetails {
+    private String funnel;
 
+    private String actorId;
+    private String status;
+
+    private Date updatedAt;
     private String taskId;
+
+    public Map<String, Object> getMetadata() {
+        return metadata;
+    }
+
+    public void setMetadata(Map<String, Object> metadata) {
+        this.metadata = metadata;
+    }
+
+    private Map<String, Object> metadata;
 
     public String getTaskId() {
         return taskId;
@@ -59,11 +74,5 @@ public class TaskDetails {
         this.updatedAt = updatedAt;
     }
 
-    private String funnel;
-
-    private String actorId;
-    private String status;
-
-    private Date updatedAt;
 
 }
