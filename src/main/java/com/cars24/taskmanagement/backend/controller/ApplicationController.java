@@ -17,7 +17,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/applicationLog")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173/")
+@CrossOrigin(origins = "http://localhost:5175/")
 public class ApplicationController {
     @Autowired
     private  ApplicationService applicationService;
