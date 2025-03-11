@@ -8,4 +8,5 @@ public class TaskEntity {
     private String taskId;
     private double duration;
     private int visited;
+    private String status;
 }
