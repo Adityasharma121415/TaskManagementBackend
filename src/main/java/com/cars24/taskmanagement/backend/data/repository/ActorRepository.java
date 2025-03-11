@@ -14,4 +14,7 @@ public interface ActorRepository extends MongoRepository<ActorEntity, String> {
     @Query("{'actorId': ?0, 'lastUpdatedAt': { $gte: ?1 }}")
     List<ActorEntity> findAllByActorIdAndLastUpdatedAtAfter(String actorId, Date lastUpdatedAt);
 
+    @Query("{'lastUpdatedAt': { $gte: ?0 }}")
+    List<ActorEntity> findAllByLastUpdatedAtAfter(Date lastUpdatedAt);
+
 }
