@@ -5,6 +5,7 @@ import com.cars24.taskmanagement.backend.service.impl.SlaServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+@CrossOrigin(origins="http://localhost:5173")
 @RestController
 @RequestMapping("/SLAMonitoring")
 @RequiredArgsConstructor
