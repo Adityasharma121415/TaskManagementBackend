@@ -15,4 +15,5 @@ public interface TaskExecutionLogRepository extends MongoRepository<TaskExecutio
             "{ $sort: { updatedAt: 1 } }"
     })
     List<TaskExecutionLog> findTasksByApplicationIdSortedByUpdatedAt(String applicationId);
+    List<TaskExecutionLog> findByApplicationId(String applicationId);
 }

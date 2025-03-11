@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface ApplicationDao {
     List<TaskExecutionLog> findTasksByApplicationIdSortedByUpdatedAt(String applicationId);
+    List<TaskExecutionLog> findByApplicationId(String applicationId);
 }

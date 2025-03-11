@@ -1,6 +1,9 @@
 package com.cars24.taskmanagement.backend.service.impl;
 import com.cars24.taskmanagement.backend.data.dao.ApplicationDao;
 import com.cars24.taskmanagement.backend.data.entity.TaskExecutionLog;
+import com.cars24.taskmanagement.backend.data.response.FunnelGroup;
+import com.cars24.taskmanagement.backend.data.response.TaskDetails;
+import com.cars24.taskmanagement.backend.data.response.TasksResponse;
 import com.cars24.taskmanagement.backend.data.response.dto.StatusLogResponse;
 import com.cars24.taskmanagement.backend.data.response.dto.TaskResponse;
 import com.cars24.taskmanagement.backend.service.ApplicationService;
@@ -11,6 +14,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class ApplicationServiceImpl implements ApplicationService {
+
+    private static final String UNKNOWN_FUNNEL = "Unknown Funnel";
 
     @Autowired
     private ApplicationDao taskExecutionDao;
@@ -86,5 +91,75 @@ public class ApplicationServiceImpl implements ApplicationService {
                 });
 
         return result;
+    }
+
+    @Override
+    public TasksResponse getTasksByApplicationId(String applicationId) {
+        // Use the DAO to get sorted tasks from the repository
+        List<TaskExecutionLog> sortedTasks = taskExecutionDao.findTasksByApplicationIdSortedByUpdatedAt(applicationId);
+
+        // Convert to TaskDetails
+        List<TaskDetails> taskDetailsList = sortedTasks.stream()
+                .map(this::convertToTaskDetails)
+                .collect(Collectors.toList());
+
+        // Group consecutive tasks of the same funnel
+        List<FunnelGroup> funnelGroups = groupTasksByFunnel(taskDetailsList);
+
+        TasksResponse response = new TasksResponse();
+        response.setFunnelGroups(funnelGroups);
+        return response;
+    }
+
+    private List<FunnelGroup> groupTasksByFunnel(List<TaskDetails> sortedTasks) {
+        List<FunnelGroup> funnelGroups = new ArrayList<>();
+
+        if (sortedTasks.isEmpty()) {
+            return funnelGroups;
+        }
+
+        String currentFunnel = null;
+        FunnelGroup currentGroup = null;
+
+        for (TaskDetails task : sortedTasks) {
+            // Handle null funnel by replacing with "Unknown Funnel"
+            String taskFunnel = (task.getFunnel() != null) ? task.getFunnel() : UNKNOWN_FUNNEL;
+
+            // If this is a new funnel or the first task
+            if (currentFunnel == null || !currentFunnel.equals(taskFunnel)) {
+                currentFunnel = taskFunnel;
+                currentGroup = new FunnelGroup();
+                currentGroup.setFunnelName(taskFunnel);
+                currentGroup.setTasks(new ArrayList<>());
+                funnelGroups.add(currentGroup);
+            }
+
+            // Add task to the current funnel group
+            currentGroup.getTasks().add(task);
+        }
+
+        return funnelGroups;
+    }
+
+    private TaskDetails convertToTaskDetails(TaskExecutionLog log) {
+        TaskDetails details = new TaskDetails();
+
+        details.setTaskId(log.getTaskId());
+
+
+
+
+        // Handle null funnel in the conversion process
+        details.setFunnel(log.getFunnel() != null ? log.getFunnel() : UNKNOWN_FUNNEL);
+
+
+
+        details.setActorId(log.getActorId());
+        details.setStatus(log.getStatus());
+
+        details.setUpdatedAt(log.getUpdatedAt());
+        details.setMetadata(log.getMetadata());
+
+        return details;
     }
 }
