@@ -2,21 +2,13 @@ package com.cars24.taskmanagement.backend.service.impl;
 
 import com.cars24.taskmanagement.backend.data.dao.ApplicationDao;
 import com.cars24.taskmanagement.backend.data.entity.TaskExecutionLog;
-import com.cars24.taskmanagement.backend.data.repository.TaskExecutionLogRepository;
 import com.cars24.taskmanagement.backend.data.response.FunnelGroup;
 import com.cars24.taskmanagement.backend.data.response.TaskDetails;
 import com.cars24.taskmanagement.backend.data.response.TasksResponse;
 import com.cars24.taskmanagement.backend.service.ApplicationService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.aggregation.Aggregation;
-import org.springframework.data.mongodb.core.aggregation.AggregationResults;
-import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.sort;
@@ -28,10 +20,9 @@ import static org.springframework.data.mongodb.core.aggregation.Aggregation.proj
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
-public class ApplicationServiceImpl implements ApplicationService {
+public class RepeatedApplicationServiceImpl implements ApplicationService {
 
     private static final String UNKNOWN_FUNNEL = "Unknown Funnel";
 

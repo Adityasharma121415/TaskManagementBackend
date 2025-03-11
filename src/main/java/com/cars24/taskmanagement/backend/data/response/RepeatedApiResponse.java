@@ -1,7 +1,6 @@
 package com.cars24.taskmanagement.backend.data.response;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -9,7 +8,7 @@ import lombok.NoArgsConstructor;
 
     @NoArgsConstructor
     @AllArgsConstructor
-    public class ApiResponse {
+    public class RepeatedApiResponse {
         private int statusCode;
         private boolean success;
         private String message;
