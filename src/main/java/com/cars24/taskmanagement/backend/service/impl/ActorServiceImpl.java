@@ -48,11 +48,11 @@ public class ActorServiceImpl implements ActorService {
             }
         }
 
-        if(totalTimeSpent == 0){
+        if(totalTasksCompleted == 0){
             return 0;
         }
 
-        return (totalTasksCompleted/totalTimeSpent)*100;
+        return (totalTimeSpent/totalTasksCompleted)*100;
     }
 
     @Override
@@ -358,10 +358,12 @@ public class ActorServiceImpl implements ActorService {
             String applicationId = document.getApplicationId();
 
             for(TaskEntity task : document.getTasks()){
+                String status = task.getStatus();
                 Map<String, String> taskDetails = new HashMap<>();
-                taskDetails.put("task_name", task.getTaskId());
-                taskDetails.put("application_id", applicationId);
-
+                if(status == "NEW" || status == "IN_PROGRESS" || status == "TODO"){
+                    taskDetails.put("task_name", task.getTaskId());
+                    taskDetails.put("application_id", applicationId);
+                }
                 tasksAssigned.add(taskDetails);
             }
         }
