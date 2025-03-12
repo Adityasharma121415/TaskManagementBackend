@@ -19,9 +19,9 @@ public class ActorController {
 
     private final ActorServiceImpl actorService;
 
-    @GetMapping(path = "{actorId}")
-    public ResponseEntity getActorPerformance(@PathVariable String actorId){
-        log.info("ActorController [getActorPerformance] {}", actorId);
-        return ResponseEntity.ok().body(actorService.getActorMetrics(actorId));
+    @GetMapping(path = "{actorId}/{days}")
+    public ResponseEntity getActorPerformance(@PathVariable String actorId, @PathVariable int days){
+        log.info("ActorController [getActorPerformance] {} {}", actorId, days);
+        return ResponseEntity.ok().body(actorService.getActorMetrics(actorId, days));
     }
 }
