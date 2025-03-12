@@ -1,48 +1,43 @@
 package com.cars24.taskmanagement.backend.controller;
 
-
-import com.cars24.taskmanagement.backend.data.entity.LoanDuration;
 import com.cars24.taskmanagement.backend.data.response.ApiResponse;
 import com.cars24.taskmanagement.backend.data.response.RepeatedApiResponse;
 import com.cars24.taskmanagement.backend.data.response.TasksResponse;
+
 import com.cars24.taskmanagement.backend.data.response.dto.TaskGroupedResponse;
-import com.cars24.taskmanagement.backend.service.LoanDurationService;
 import com.cars24.taskmanagement.backend.service.impl.ApplicationServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Optional;
-
 @RestController
+//@RequiredArgsConstructor
 @RequestMapping("/applicationLog")
 @CrossOrigin(origins = "http://localhost:5173")
 public class ApplicationController {
 
-    private final ApplicationServiceImpl applicationService;
-
     @Autowired
-    public ApplicationController(ApplicationServiceImpl applicationService) {
-        this.applicationService = applicationService;
-    }
+    ApplicationServiceImpl applicationService;
+
+    //private LoanDurationService loanDurationService;
+
 
     @GetMapping("/{applicationId}")
     public ApiResponse getTasksByApplicationId(@PathVariable String applicationId) {
         TaskGroupedResponse responseData = new TaskGroupedResponse(applicationService.getTasksGroupedByFunnel(applicationId));
-        return new ApiResponse(
-                HttpStatus.OK.value(),
-                "Tasks fetched successfully",
-                "TaskManagementService",
-                true,
-                responseData
-        );
+        ApiResponse response = new ApiResponse();
+        response.setData(responseData);
+        response.setService("TaskManagementService");
+        response.setMessage("Tasks fetched successfully");
+        response.setSuccess(true);
+        response.setStatusCode(HttpStatus.OK.value());
+        return response;
     }
 
     @GetMapping("/graph/{applicationId}")
     public ResponseEntity<RepeatedApiResponse> getTasksByApplicationIdDC(@PathVariable String applicationId) {
         TasksResponse tasksResponse = applicationService.getTasksByApplicationId(applicationId);
-
         RepeatedApiResponse response = new RepeatedApiResponse();
         response.setStatusCode(HttpStatus.OK.value());
         response.setSuccess(true);
@@ -52,15 +47,12 @@ public class ApplicationController {
 
         return ResponseEntity.ok(response);
     }
-    @Autowired
-    private LoanDurationService loanDurationService;
-    @GetMapping("/duration/{applicationId}")
 
 
-    public ResponseEntity<?> getLoanDuration(@PathVariable String applicationId) {
-        Optional<LoanDuration> loanDuration = loanDurationService.fetchLoanDuration(applicationId);
-        return loanDuration.map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+//    @GetMapping("/duration/{applicationId}")
+//    public ResponseEntity<?> getLoanDuration(@PathVariable String applicationId) {
+//        Optional<LoanDuration> loanDuration = loanDurationService.fetchLoanDuration(applicationId);
+//        return loanDuration.map(ResponseEntity::ok)
+//                .orElseGet(() -> ResponseEntity.notFound().build());
+//    }
 }
-}
-

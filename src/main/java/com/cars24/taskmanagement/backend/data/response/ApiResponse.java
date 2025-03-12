@@ -1,12 +1,13 @@
 package com.cars24.taskmanagement.backend.data.response;
 
+import com.cars24.taskmanagement.backend.data.response.dto.TaskGroupedResponse;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
+@RequiredArgsConstructor
 public class ApiResponse {
     private int statusCode;
     private String message;
@@ -14,13 +15,6 @@ public class ApiResponse {
     private boolean success;
     private Object data;
 
-    public String getService() {
-        return service;
-    }
-
-    public void setService(String service) {
-        this.service = service;
-    }
 
     public int getStatusCode() {
         return statusCode;
@@ -38,6 +32,14 @@ public class ApiResponse {
         this.message = message;
     }
 
+    public String getService() {
+        return service;
+    }
+
+    public void setService(String service) {
+        this.service = service;
+    }
+
     public boolean isSuccess() {
         return success;
     }
@@ -53,6 +55,4 @@ public class ApiResponse {
     public void setData(Object data) {
         this.data = data;
     }
-
-
 }

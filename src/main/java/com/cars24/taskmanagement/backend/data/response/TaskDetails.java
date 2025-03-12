@@ -1,9 +1,6 @@
 package com.cars24.taskmanagement.backend.data.response;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.Instant;
 import java.util.Date;
@@ -12,9 +9,7 @@ import java.util.Map;
 
 
 @Data
-
-@NoArgsConstructor
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class TaskDetails {
     private String funnel;
 
@@ -23,6 +18,9 @@ public class TaskDetails {
 
     private Date updatedAt;
     private String taskId;
+    private int sendbacks;
+    private int duration;
+    private Map<String, Object> metadata;
 
     public Map<String, Object> getMetadata() {
         return metadata;
@@ -30,16 +28,6 @@ public class TaskDetails {
 
     public void setMetadata(Map<String, Object> metadata) {
         this.metadata = metadata;
-    }
-
-    private Map<String, Object> metadata;
-
-    public String getTaskId() {
-        return taskId;
-    }
-
-    public void setTaskId(String taskId) {
-        this.taskId = taskId;
     }
 
     public String getFunnel() {
@@ -74,5 +62,27 @@ public class TaskDetails {
         this.updatedAt = updatedAt;
     }
 
+    public String getTaskId() {
+        return taskId;
+    }
 
+    public void setTaskId(String taskId) {
+        this.taskId = taskId;
+    }
+
+    public int getSendbacks() {
+        return sendbacks;
+    }
+
+    public void setSendbacks(int sendbacks) {
+        this.sendbacks = sendbacks;
+    }
+
+    public int getDuration() {
+        return duration;
+    }
+
+    public void setDuration(int duration) {
+        this.duration = duration;
+    }
 }

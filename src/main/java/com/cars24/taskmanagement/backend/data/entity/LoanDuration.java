@@ -87,6 +87,7 @@ public class LoanDuration {
     private List<Task> fulfillment;
 
 
+
     public static class Task { //
         private String taskId;
         private String new_time;
