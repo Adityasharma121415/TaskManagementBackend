@@ -17,7 +17,7 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/applicationLog")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5175/")
+@CrossOrigin(origins = "http://localhost:5174/")
 public class RepeatedApplicationController {
     @Autowired
     private ApplicationService applicationService;
