@@ -5,6 +5,7 @@ import com.cars24.taskmanagement.backend.data.entity.TaskExecutionLog;
 import com.cars24.taskmanagement.backend.data.response.FunnelGroup;
 import com.cars24.taskmanagement.backend.data.response.TaskDetails;
 import com.cars24.taskmanagement.backend.data.response.TasksResponse;
+import com.cars24.taskmanagement.backend.data.response.dto.FunnelResponse;
 import com.cars24.taskmanagement.backend.data.response.dto.StatusLogResponse;
 import com.cars24.taskmanagement.backend.data.response.dto.TaskResponse;
 import com.cars24.taskmanagement.backend.service.ApplicationService;
@@ -29,8 +30,8 @@ public class ApplicationServiceImpl implements ApplicationService {
 //        this.taskExecutionDao = taskExecutionDao;
 //    }
 
-    public Map<String, List<TaskResponse>> getTasksGroupedByFunnel(String applicationId) {
-        // Fetch tasks and loan duration in one go
+    public Map<String, FunnelResponse> getTasksGroupedByFunnel(String applicationId) {
+        // Fetch tasks and loan duration
         Map<String, Object> data = taskExecutionDao.findTasksAndLoanDurationByApplicationId(applicationId);
         List<TaskExecutionLog> tasks = (List<TaskExecutionLog>) data.get("tasks");
         LoanDuration loanDuration = (LoanDuration) data.get("loanDuration");
@@ -62,7 +63,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .collect(Collectors.toList());
 
         // Transform into final response
-        LinkedHashMap<String, List<TaskResponse>> result = new LinkedHashMap<>();
+        LinkedHashMap<String, FunnelResponse> result = new LinkedHashMap<>();
 
         for (String funnel : sortedFunnels) {
             List<TaskResponse> funnelTasks = tasksByFunnelAndId.getOrDefault(funnel, Collections.emptyMap())
@@ -99,11 +100,17 @@ public class ApplicationServiceImpl implements ApplicationService {
                     })
                     .collect(Collectors.toList());
 
-            result.put(funnel, funnelTasks);
+            // Compute total funnelDuration for this funnel
+            int funnelDuration = funnelTasks.stream()
+                    .mapToInt(task -> (int) taskMetadata.getOrDefault(task.getTaskId(), new LoanDuration.Task()).getDuration())
+                    .sum();
+            // Store the funnel group with duration
+            result.put(funnel, new FunnelResponse(funnel, funnelDuration, funnelTasks));
         }
 
         return result;
     }
+
 
     @Override
     public TasksResponse getTasksByApplicationId(String applicationId) {

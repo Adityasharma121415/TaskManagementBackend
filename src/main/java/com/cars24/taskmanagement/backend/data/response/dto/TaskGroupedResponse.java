@@ -7,17 +7,17 @@ import java.util.Map;
 
 @Data
 public class TaskGroupedResponse {
-    public TaskGroupedResponse(Map<String, List<TaskResponse>> tasksByFunnel) {
+    private Map<String, FunnelResponse> tasksByFunnel;
+
+    public TaskGroupedResponse(Map<String, FunnelResponse> tasksByFunnel) {
         this.tasksByFunnel = tasksByFunnel;
     }
 
-    public Map<String, List<TaskResponse>> getTasksByFunnel() {
+    public Map<String, FunnelResponse> getTasksByFunnel() {
         return tasksByFunnel;
     }
 
-    public void setTasksByFunnel(Map<String, List<TaskResponse>> tasksByFunnel) {
+    public void setTasksByFunnel(Map<String, FunnelResponse> tasksByFunnel) {
         this.tasksByFunnel = tasksByFunnel;
     }
-
-    private Map<String, List<TaskResponse>> tasksByFunnel;
 }

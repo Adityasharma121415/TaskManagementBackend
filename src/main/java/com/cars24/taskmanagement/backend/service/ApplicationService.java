@@ -1,6 +1,7 @@
 package com.cars24.taskmanagement.backend.service;
 
 import com.cars24.taskmanagement.backend.data.response.TasksResponse;
+import com.cars24.taskmanagement.backend.data.response.dto.FunnelResponse;
 import com.cars24.taskmanagement.backend.data.response.dto.TaskResponse;
 import org.springframework.stereotype.Service;
 
@@ -16,7 +17,7 @@ public interface ApplicationService {
      * @param applicationId The ID of the application
      * @return A map of funnel names to lists of task responses
      */
-    Map<String, List<TaskResponse>> getTasksGroupedByFunnel(String applicationId);
+    public Map<String, FunnelResponse> getTasksGroupedByFunnel(String applicationId);
 
     /**
      * Retrieves tasks for a given application ID, organized for graph display.
