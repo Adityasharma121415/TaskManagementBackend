@@ -364,7 +364,9 @@ public class ActorServiceImpl implements ActorService {
                     taskDetails.put("task_name", task.getTaskId());
                     taskDetails.put("application_id", applicationId);
                 }
-                tasksAssigned.add(taskDetails);
+                if(!taskDetails.isEmpty()) {
+                    tasksAssigned.add(taskDetails);
+                }
             }
         }
         return tasksAssigned;
