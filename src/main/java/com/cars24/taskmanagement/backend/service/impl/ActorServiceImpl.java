@@ -48,11 +48,11 @@ public class ActorServiceImpl implements ActorService {
             }
         }
 
-        if(totalTimeSpent == 0){
+        if(totalTasksCompleted == 0){
             return 0;
         }
 
-        return (totalTasksCompleted/totalTimeSpent)*100;
+        return (totalTimeSpent/totalTasksCompleted)*100;
     }
 
     @Override
@@ -194,6 +194,98 @@ public class ActorServiceImpl implements ActorService {
     }
 
     @Override
+    public Map<String, Integer> retryFrequency(String actorId){
+        log.info("ActorServiceImpl [retryFrequency] {}", actorId);
+        Map<String, Integer> response = new HashMap<>();
+
+        for(ActorEntity document : actorDocuments){
+            List<TaskEntity> tasks = document.getTasks();
+            for(TaskEntity task : tasks){
+                String taskId = task.getTaskId();
+                int visited = task.getVisited();
+                visited -= 1;
+                response.put(taskId, response.getOrDefault(taskId, 0) + visited);
+            }
+        }
+
+        return response;
+    }
+
+    @Override
+    public Map<String, Integer>retryFrequencyThreshold(){
+        log.info("ActorServiceImpl [retryFrequency] ");
+        Map<String, Integer> response = new HashMap<>();
+
+        for(ActorEntity document : allDocuments){
+            List<TaskEntity> tasks = document.getTasks();
+            for(TaskEntity task : tasks){
+                String taskId = task.getTaskId();
+                int visited = task.getVisited();
+                visited -= 1;
+                response.put(taskId, response.getOrDefault(taskId, 0) + visited);
+            }
+        }
+
+        return response;
+    }
+
+    @Override
+    public Map<String, Double> taskRetries(String actorId){
+        log.info("ActorServiceImpl [taskRetries]");
+        Map<String, Double> response = new HashMap<>();
+
+        Map<String, Integer> frequencyOfTasksAcrossApplications = new HashMap<>();
+        Map<String, Integer> retriesForTask = retryFrequency(actorId);
+
+        for(ActorEntity document : actorDocuments){
+            List<TaskEntity> tasks = document.getTasks();
+            for(TaskEntity task : tasks){
+                String taskId = task.getTaskId();
+                frequencyOfTasksAcrossApplications.put(taskId, frequencyOfTasksAcrossApplications.getOrDefault(taskId, 0) + 1);
+            }
+        }
+
+        for(Map.Entry<String, Integer> entry : retriesForTask.entrySet()){
+            String taskId = entry.getKey();
+            Integer retries = entry.getValue();
+            Integer freq = frequencyOfTasksAcrossApplications.get(taskId);
+
+            Double average = (double) (retries / freq);
+            response.put(taskId, average);
+        }
+
+        return response;
+    }
+
+    @Override
+    public Map<String, Double> taskRetriesThreshold(){
+        log.info("ActorServiceImpl [taskRetriesThreshold]");
+        Map<String, Double> response = new HashMap<>();
+
+        Map<String, Integer> frequencyOfTasksAcrossApplications = new HashMap<>();
+        Map<String, Integer> retriesForTask = retryFrequencyThreshold();
+
+        for(ActorEntity document : allDocuments){
+            List<TaskEntity> tasks = document.getTasks();
+            for(TaskEntity task : tasks){
+                String taskId = task.getTaskId();
+                frequencyOfTasksAcrossApplications.put(taskId, frequencyOfTasksAcrossApplications.getOrDefault(taskId, 0) + 1);
+            }
+        }
+
+        for(Map.Entry<String, Integer> entry : retriesForTask.entrySet()){
+            String taskId = entry.getKey();
+            Integer retries = entry.getValue();
+            Integer freq = frequencyOfTasksAcrossApplications.get(taskId);
+
+            Double average = (double) (retries / freq);
+            response.put(taskId, average);
+        }
+
+        return response;
+    }
+
+    @Override
     public Map<String, Integer> taskFrequencyThreshold() {
         log.info("ActorServiceImpl [taskFrequencyThreshold]");
 
@@ -266,11 +358,15 @@ public class ActorServiceImpl implements ActorService {
             String applicationId = document.getApplicationId();
 
             for(TaskEntity task : document.getTasks()){
+                String status = task.getStatus();
                 Map<String, String> taskDetails = new HashMap<>();
-                taskDetails.put("task_name", task.getTaskId());
-                taskDetails.put("application_id", applicationId);
-
-                tasksAssigned.add(taskDetails);
+                if(status == "NEW" || status == "IN_PROGRESS" || status == "TODO"){
+                    taskDetails.put("task_name", task.getTaskId());
+                    taskDetails.put("application_id", applicationId);
+                }
+                if(!taskDetails.isEmpty()) {
+                    tasksAssigned.add(taskDetails);
+                }
             }
         }
         return tasksAssigned;
@@ -341,6 +437,8 @@ public class ActorServiceImpl implements ActorService {
         Double agentErrorRate = getAgentErrorRate(actorId);
         Map<String, Object> fastestAndSlowestTask = getFastestAndSlowestTask(actorId);
         Map<String, Object> mostAndLeastRetriedTask = getMostAndLeastRetriedTask(actorId);
+        Map<String, Double> taskRetries = taskRetries(actorId);
+        Map<String, Double> taskRetriesThreshold = taskRetriesThreshold();
 
 //        if(averageDuration == null){
 //            log.warn("ActorServiceImpl [getActorMetrics] : averageDuration is empty");
@@ -375,6 +473,13 @@ public class ActorServiceImpl implements ActorService {
         if(mostAndLeastRetriedTask == null || mostAndLeastRetriedTask.isEmpty()){
             log.warn("ActorServiceImpl [getActorMetrics] : mostAndLeastRetriedTask is empty for actorId {}", actorId);
         }
+        if(taskRetries == null){
+            log.warn("ActorServiceImpl [getActorMetrics] : taskRetries is empty for actorId {}", actorId);
+        }
+        if(taskRetriesThreshold == null){
+            log.warn("ActorServiceImpl [getActorMetrics] :taskRetriesThreshold is empty");
+        }
+
 
 //        response.put("average_duration", averageDuration);
         response.put("task_frequency", taskFrequency);
@@ -387,7 +492,8 @@ public class ActorServiceImpl implements ActorService {
         response.put("agent_error_rate", agentErrorRate);
         response.put("fastest_and_slowest_task", fastestAndSlowestTask);
         response.put("most_and_least_retried_task", mostAndLeastRetriedTask);
-
+        response.put("average_retries", taskRetries);
+        response.put("average_retries_threshold", taskRetriesThreshold);
         return response;
     }
 }

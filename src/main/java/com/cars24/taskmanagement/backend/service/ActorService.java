@@ -17,6 +17,14 @@ public interface ActorService {
 
     public Map<String, Integer> taskFrequency(String actorId);
 
+    Map<String, Integer> retryFrequency(String actorId);
+
+    Map<String, Integer>retryFrequencyThreshold();
+
+    Map<String, Double> taskRetries(String actorId);
+
+    Map<String, Double> taskRetriesThreshold();
+
     Map<String, Integer> taskFrequencyThreshold();
 
     public Map<String, Double> getTaskTimeAcrossApplications(String actorId);
