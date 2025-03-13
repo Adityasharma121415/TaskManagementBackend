@@ -9,7 +9,7 @@ import java.util.Map;
 
 
 @Data
-
+@AllArgsConstructor
 public class TaskDetails {
     private String funnel;
     private String actorId;
