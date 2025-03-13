@@ -64,6 +64,11 @@ public class SubTaskEntity {
             case "NEW":
                 this.new_time = updatedAt;
                 break;
+
+            case "SKIPPED":
+                this.duration += updatedAt.toEpochMilli() - this.new_time.toEpochMilli();
+                break;
+
         }
 
         // Always update the updatedAt field
