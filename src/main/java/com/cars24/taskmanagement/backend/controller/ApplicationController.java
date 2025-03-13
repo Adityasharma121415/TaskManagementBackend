@@ -47,12 +47,4 @@ public class ApplicationController {
 
         return ResponseEntity.ok(response);
     }
-
-
-//    @GetMapping("/duration/{applicationId}")
-//    public ResponseEntity<?> getLoanDuration(@PathVariable String applicationId) {
-//        Optional<LoanDuration> loanDuration = loanDurationService.fetchLoanDuration(applicationId);
-//        return loanDuration.map(ResponseEntity::ok)
-//                .orElseGet(() -> ResponseEntity.notFound().build());
-//    }
 }
