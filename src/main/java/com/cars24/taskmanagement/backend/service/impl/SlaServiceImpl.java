@@ -34,9 +34,13 @@ public class SlaServiceImpl implements com.cars24.taskmanagement.backend.service
             Map<String, List<SubTaskEntity>> funnels = Map.of(
                     "sourcing", execution.getSourcing(),
                     "credit", execution.getCredit(),
+                    "risk", execution.getRisk(),
                     "conversion", execution.getConversion(),
-                    "fulfillment", execution.getFulfillment()
+                    "rto", execution.getRto(),
+                    "fulfillment", execution.getFulfillment(),
+                    "disbursal", execution.getDisbursal()
             );
+
 
             funnels.forEach((funnelName, tasks) -> {
                 for (SubTaskEntity task : tasks) {
@@ -89,7 +93,8 @@ public class SlaServiceImpl implements com.cars24.taskmanagement.backend.service
 
         // Build nested "funnels" structure in the required order.
         Map<String, SlaResponse.Funnel> funnels = new LinkedHashMap<>();
-        String[] funnelOrder = {"sourcing", "credit", "conversion", "fulfillment"};
+        String[] funnelOrder = {"sourcing", "credit", "risk", "conversion", "rto", "fulfillment", "disbursal"};
+
         for (String funnelName : funnelOrder) {
             String funnelTime = avgFunnelTimes.getOrDefault(funnelName, SlaResponse.formatDuration(0));
             funnels.put(funnelName, new SlaResponse.Funnel(funnelTime, new LinkedHashMap<>()));
