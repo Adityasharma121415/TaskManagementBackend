@@ -343,7 +343,13 @@ public class ActorServiceImpl implements ActorService {
         int tasksCompleted = 0;
 
         for(ActorEntity document : actorDocuments){
-            tasksCompleted += document.getTasks().size();
+            List<TaskEntity> tasks = document.getTasks();
+            for(TaskEntity task : tasks){
+                String status = task.getStatus();
+                if(status.equals("COMPLETED")){
+                    tasksCompleted += 1;
+                }
+            }
         }
         return tasksCompleted;
     }
@@ -360,7 +366,7 @@ public class ActorServiceImpl implements ActorService {
             for(TaskEntity task : document.getTasks()){
                 String status = task.getStatus();
                 Map<String, String> taskDetails = new HashMap<>();
-                if(status == "NEW" || status == "IN_PROGRESS" || status == "TODO"){
+                if(status.equals("NEW") || status.equals("IN_PROGRESS") || status.equals("TODO")){
                     taskDetails.put("task_name", task.getTaskId());
                     taskDetails.put("application_id", applicationId);
                 }
@@ -425,7 +431,7 @@ public class ActorServiceImpl implements ActorService {
         getAllApplications(days);
 
 //        Map<String, Long> averageDuration = getAverageDuration(actorId);
-        Map<String, Integer> taskFrequency = taskFrequency(actorId);
+//        Map<String, Integer> taskFrequency = taskFrequency(actorId);
         Map<String, Double> taskTimeAcrossApplications = getTaskTimeAcrossApplications(actorId);
         Map<String, Double> averageTaskTime = getAverageTaskTime(actorId);
         int totalTasksCompleted = getTasksCompleted(actorId);
@@ -443,9 +449,9 @@ public class ActorServiceImpl implements ActorService {
 //        if(averageDuration == null){
 //            log.warn("ActorServiceImpl [getActorMetrics] : averageDuration is empty");
 //        }
-        if(taskFrequency == null){
-            log.warn("ActorServiceImpl [getActorMetrics] : taskFrequency is empty");
-        }
+//        if(taskFrequency == null){
+//            log.warn("ActorServiceImpl [getActorMetrics] : taskFrequency is empty");
+//        }
         if(taskTimeAcrossApplications == null){
             log.warn("ActorServiceImpl [getActorMetrics] : taskTimeAcrossApplications is empty");
         }
@@ -482,8 +488,8 @@ public class ActorServiceImpl implements ActorService {
 
 
 //        response.put("average_duration", averageDuration);
-        response.put("task_frequency", taskFrequency);
-        response.put("task_time_across_applications", taskTimeAcrossApplications);
+//        response.put("task_frequency", taskFrequency);
+//        response.put("task_time_across_applications", taskTimeAcrossApplications);
         response.put("average_task_time_across_applications", averageTaskTime);
         response.put("total_tasks_completed", totalTasksCompleted);
         response.put("tasks_assigned", tasksAssigned);
