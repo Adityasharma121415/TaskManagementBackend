@@ -28,12 +28,7 @@ public class SlaServiceImplTest {
     @InjectMocks
     private SlaServiceImpl slaService;
 
-    /**
-     * Creates a TaskExecutionTimeEntity with one SubTaskEntity for each funnel.
-     * Each SubTaskEntity is constructed using the updated constructor and then its
-     * state is updated via updateStatus("COMPLETED", ...). This calculates the duration
-     * as the difference between the COMPLETED time and the created time, and increments sendbacks.
-     */
+
     private TaskExecutionTimeEntity createTaskExecutionEntity() {
         TaskExecutionTimeEntity entity = new TaskExecutionTimeEntity();
         Instant baseTime = Instant.now();
@@ -75,25 +70,24 @@ public class SlaServiceImplTest {
         assertNotNull(response);
         assertNotNull(response.getFunnels());
 
-        // Verify that all expected funnels are present.
+
         assertTrue(response.getFunnels().containsKey("sourcing"));
         assertTrue(response.getFunnels().containsKey("credit"));
         assertTrue(response.getFunnels().containsKey("conversion"));
         assertTrue(response.getFunnels().containsKey("fulfillment"));
 
-        // Validate details in the "sourcing" funnel.
+
         SlaResponse.Funnel sourcingFunnel = response.getFunnels().get("sourcing");
         assertNotNull(sourcingFunnel);
         assertTrue(sourcingFunnel.getTasks().containsKey("sourcing_task1"));
 
         SlaResponse.Task task = sourcingFunnel.getTasks().get("sourcing_task1");
         assertNotNull(task);
-        // With one updateStatus("COMPLETED") call, duration should equal 1000 ms (completed time - created time)
-        // and sendbacks should be incremented from -1 to 0.
+
         assertEquals(SlaResponse.formatDuration(1000L), task.getTimeTaken());
         assertEquals(0L, task.getNoOfSendbacks());
 
-        // Validate overall Total Turn-Around-Time (TAT): the sum of individual funnel durations.
+
         long expectedTAT = 1000L + 2000L + 3000L + 4000L;
         assertEquals(SlaResponse.formatDuration(expectedTAT), response.getAverageTAT());
     }
