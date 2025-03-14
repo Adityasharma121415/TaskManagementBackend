@@ -11,11 +11,10 @@ import java.util.List;
 public class TasksResponse {
     private List<FunnelGroup> funnelGroups;
 
-    // Default constructor
+
     public TasksResponse() {
     }
 
-    // Constructor with parameters
     public TasksResponse(List<FunnelGroup> funnelGroups) {
         this.funnelGroups = funnelGroups;
     }
