@@ -9,7 +9,7 @@ import java.util.Date;
 
 @Data
 @Document(collection = "sendback_config")
-public class SendbackConfig {
+public class SendbackConfigEntity {
 
     @Id
     private String id;

@@ -1,12 +1,11 @@
 package com.cars24.taskmanagement.backend.data.dao.impl;
 
 import com.cars24.taskmanagement.backend.data.dao.ApplicationDao;
-import com.cars24.taskmanagement.backend.data.entity.LoanDuration;
-import com.cars24.taskmanagement.backend.data.entity.TaskExecutionLog;
+import com.cars24.taskmanagement.backend.data.entity.LoanDurationEntity;
+import com.cars24.taskmanagement.backend.data.entity.TaskExecutionLogEntity;
 
 import com.cars24.taskmanagement.backend.data.repository.LoanDurationRepository;
 import com.cars24.taskmanagement.backend.data.repository.TaskExecutionLogRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -23,12 +22,12 @@ public class ApplicationDaoImpl implements ApplicationDao {
     @Autowired
     LoanDurationRepository durationRepository;
 
-    public List<TaskExecutionLog> findByApplicationId(String applicationId) {
+    public List<TaskExecutionLogEntity> findByApplicationId(String applicationId) {
         return repository.findByApplicationId(applicationId);
     }
 
     @Override
-    public List<TaskExecutionLog> findTasksByApplicationIdSortedByUpdatedAt(String applicationId) {
+    public List<TaskExecutionLogEntity> findTasksByApplicationIdSortedByUpdatedAt(String applicationId) {
         return repository.findTasksByApplicationIdSortedByUpdatedAt(applicationId);
     }
 
@@ -36,12 +35,10 @@ public class ApplicationDaoImpl implements ApplicationDao {
     public Map<String, Object> findTasksAndLoanDurationByApplicationId(String applicationId) {
         Map<String, Object> result = new HashMap<>();
 
-        // Get task execution logs
-        List<TaskExecutionLog> tasks = repository.findByApplicationId(applicationId);
+        List<TaskExecutionLogEntity> tasks = repository.findByApplicationId(applicationId);
         result.put("tasks", tasks);
 
-        // Get loan duration
-        Optional<LoanDuration> loanDuration = durationRepository.findByApplicationId(applicationId);
+        Optional<LoanDurationEntity> loanDuration = durationRepository.findByApplicationId(applicationId);
         result.put("loanDuration", loanDuration.orElse(null));
 
         return result;

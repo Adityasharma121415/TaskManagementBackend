@@ -1,11 +1,10 @@
-package com.cars24.taskmanagement.backend.data.response.dto;
+package com.cars24.taskmanagement.backend.data.response.applicationDto;
 
 
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
-import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 

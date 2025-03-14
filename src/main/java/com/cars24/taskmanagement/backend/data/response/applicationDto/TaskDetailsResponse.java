@@ -1,16 +1,14 @@
-package com.cars24.taskmanagement.backend.data.response;
+package com.cars24.taskmanagement.backend.data.response.applicationDto;
 
 import lombok.*;
 
-import java.time.Instant;
 import java.util.Date;
-import java.util.List;
 import java.util.Map;
 
 
 @Data
 @AllArgsConstructor
-public class TaskDetails {
+public class TaskDetailsResponse {
     private String funnel;
     private String actorId;
     private String status;

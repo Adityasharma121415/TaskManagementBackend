@@ -1,16 +1,13 @@
 package com.cars24.taskmanagement.backend.data.entity;
 
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.util.List;
 
 @Data
 @Document(collection = "duration")
-public class LoanDuration {
+public class LoanDurationEntity {
 
     @Id
     private String id;

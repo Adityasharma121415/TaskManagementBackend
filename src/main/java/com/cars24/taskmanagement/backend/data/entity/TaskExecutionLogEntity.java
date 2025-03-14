@@ -4,14 +4,13 @@ import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
 
 
 @Data
 @Document(collection = "modified_task_execution_log")
-public class TaskExecutionLog {
+public class TaskExecutionLogEntity {
 
 
     @Id

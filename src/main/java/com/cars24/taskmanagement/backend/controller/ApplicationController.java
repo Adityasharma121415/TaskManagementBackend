@@ -1,10 +1,7 @@
 package com.cars24.taskmanagement.backend.controller;
 
 import com.cars24.taskmanagement.backend.data.response.ApiResponse;
-import com.cars24.taskmanagement.backend.data.response.RepeatedApiResponse;
-import com.cars24.taskmanagement.backend.data.response.TasksResponse;
-
-import com.cars24.taskmanagement.backend.data.response.dto.TaskGroupedResponse;
+import com.cars24.taskmanagement.backend.data.response.applicationDto.ListFunnelGroupResponse;
 import com.cars24.taskmanagement.backend.service.impl.ApplicationServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -14,15 +11,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-//@RequiredArgsConstructor
 @RequestMapping("/applicationLog")
 @CrossOrigin(origins = "http://localhost:5173")
 public class ApplicationController {
 
     @Autowired
     ApplicationServiceImpl applicationService;
-
-    //private LoanDurationService loanDurationService;
 
 
     @GetMapping("/{applicationId}")
@@ -32,14 +26,14 @@ public class ApplicationController {
     }
 
     @GetMapping("/graph/{applicationId}")
-    public ResponseEntity<RepeatedApiResponse> getTasksByApplicationIdDC(@PathVariable String applicationId) {
-        TasksResponse tasksResponse = applicationService.getTasksByApplicationId(applicationId);
-        RepeatedApiResponse response = new RepeatedApiResponse();
+    public ResponseEntity<ApiResponse> getTasksByApplicationIdDC(@PathVariable String applicationId) {
+        ListFunnelGroupResponse listFunnelGroupResponse = applicationService.getTasksByApplicationId(applicationId);
+        ApiResponse response = new ApiResponse();
         response.setStatusCode(HttpStatus.OK.value());
         response.setSuccess(true);
         response.setMessage("Tasks retrieved successfully");
         response.setService("APPUSER" + HttpStatus.OK.value());
-        response.setData(tasksResponse);
+        response.setData(listFunnelGroupResponse);
 
         return ResponseEntity.ok(response);
     }
