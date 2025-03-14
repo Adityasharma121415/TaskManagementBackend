@@ -24,10 +24,10 @@ public class SlaServiceImpl implements com.cars24.taskmanagement.backend.service
             throw new SlaException("No data found for channel: " + channel);
         }
 
-        // Use LinkedHashMap to preserve insertion order if needed.
+
         Map<String, List<Long>> taskDurations = new LinkedHashMap<>();
         Map<String, List<Long>> taskSendbacks = new LinkedHashMap<>();
-        // Use LinkedHashSet to preserve task order for each funnel.
+
         Map<String, Set<String>> funnelToTaskMapping = new LinkedHashMap<>();
 
         for (TaskExecutionTimeEntity execution : executions) {
