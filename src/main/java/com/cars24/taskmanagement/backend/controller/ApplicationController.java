@@ -20,9 +20,15 @@ public class ApplicationController {
 
 
     @GetMapping("/{applicationId}")
-    public Map<String, Object> getTasksByApplicationId(@PathVariable String applicationId) {
-
-        return applicationService.getTasksGroupedByFunnel(applicationId);
+    public ResponseEntity<ApiResponse> getTasksByApplicationId(@PathVariable String applicationId) {
+        Map<String, Object> tasksByApplicationId= applicationService.getTasksGroupedByFunnel(applicationId);
+        ApiResponse response = new ApiResponse();
+        response.setStatusCode(HttpStatus.OK.value());
+        response.setSuccess(true);
+        response.setMessage("Tasks retrieved successfully");
+        response.setService("APPUSER" + HttpStatus.OK.value());
+        response.setData(tasksByApplicationId);
+        return ResponseEntity.ok().body(response);
     }
 
     @GetMapping("/graph/{applicationId}")
@@ -35,6 +41,6 @@ public class ApplicationController {
         response.setService("APPUSER" + HttpStatus.OK.value());
         response.setData(listFunnelGroupResponse);
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok().body(response);
     }
 }
