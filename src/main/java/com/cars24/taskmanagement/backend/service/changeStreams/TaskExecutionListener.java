@@ -50,7 +50,7 @@ public class TaskExecutionListener {
                 return;
             }
 
-            // Extract required fields
+
             String taskId = getString(fullDocument, "taskId");
             String status = getString(fullDocument, "status");
             String funnel = getString(fullDocument, "funnel");
