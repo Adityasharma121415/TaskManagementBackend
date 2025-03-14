@@ -10,7 +10,7 @@ import java.util.Map;
 @Service
 public interface ApplicationService {
 
-    Map<String, List<TaskResponse>> getTasksGroupedByFunnel(String applicationId);
+    Map<String, Object> getTasksGroupedByFunnel(String applicationId);
 
     TasksResponse getTasksByApplicationId(String applicationId);
 }

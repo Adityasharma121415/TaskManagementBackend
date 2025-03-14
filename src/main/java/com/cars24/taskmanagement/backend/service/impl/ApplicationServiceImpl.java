@@ -1,4 +1,5 @@
 package com.cars24.taskmanagement.backend.service.impl;
+
 import com.cars24.taskmanagement.backend.data.dao.ApplicationDao;
 import com.cars24.taskmanagement.backend.data.dao.impl.SendbackConfigDao;
 import com.cars24.taskmanagement.backend.data.entity.LoanDuration;
@@ -11,10 +12,10 @@ import com.cars24.taskmanagement.backend.data.response.dto.TaskResponse;
 import com.cars24.taskmanagement.backend.service.ApplicationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 
 @Service
 @RequiredArgsConstructor
@@ -35,12 +36,23 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Override
-    public Map<String, List<TaskResponse>> getTasksGroupedByFunnel(String applicationId) {
+    public Map<String, Object> getTasksGroupedByFunnel(String applicationId) {
         Map<String, Object> data = taskExecutionDao.findTasksAndLoanDurationByApplicationId(applicationId);
         List<TaskExecutionLog> tasks = (List<TaskExecutionLog>) data.getOrDefault("tasks", Collections.emptyList());
         LoanDuration loanDuration = (LoanDuration) data.get("loanDuration");
 
-        Map<String, Integer> funnelMinOrders = tasks.stream()
+        // Separate sendback tasks
+        List<TaskExecutionLog> sendbackTasks = tasks.stream()
+                .filter(task -> "sendback".equalsIgnoreCase(task.getTaskId()))
+                .toList();
+
+        // Remove sendback tasks from regular tasks
+        List<TaskExecutionLog> regularTasks = tasks.stream()
+                .filter(task -> !"sendback".equalsIgnoreCase(task.getTaskId()))
+                .toList();
+
+        // Find minimum order for each funnel (excluding sendbacks)
+        Map<String, Integer> funnelMinOrders = regularTasks.stream()
                 .collect(Collectors.groupingBy(
                         task -> Optional.ofNullable(task.getFunnel()).orElse(UNKNOWN_FUNNEL),
                         Collectors.mapping(TaskExecutionLog::getOrder, Collectors.minBy(Integer::compare))
@@ -51,39 +63,81 @@ public class ApplicationServiceImpl implements ApplicationService {
                         entry -> entry.getValue().orElse(Integer.MAX_VALUE)
                 ));
 
+        // Fetch task metadata from LoanDuration
         Map<String, LoanDuration.Task> taskMetadata = Optional.ofNullable(loanDuration)
                 .map(ld -> Stream.of(ld.getSourcing(), ld.getCredit(), ld.getConversion(), ld.getFulfillment())
                         .filter(Objects::nonNull)
                         .flatMap(Collection::stream)
-                        .collect(Collectors.toMap(LoanDuration.Task::getTaskId, task -> task, (a, b) -> a))
+                        .collect(Collectors.toMap(
+                                task -> Optional.ofNullable(task.getTaskId()).orElse("UNKNOWN_TASK"),
+                                task -> task,
+                                (a, b) -> a
+                        ))
                 ).orElse(Collections.emptyMap());
 
-        Map<String, Map<String, List<TaskExecutionLog>>> tasksByFunnelAndId = tasks.stream()
+        // Group regular tasks by Funnel & Task ID safely
+        Map<String, Map<String, List<TaskExecutionLog>>> tasksByFunnelAndId = regularTasks.stream()
                 .collect(Collectors.groupingBy(
                         task -> Optional.ofNullable(task.getFunnel()).orElse(UNKNOWN_FUNNEL),
-                        Collectors.groupingBy(TaskExecutionLog::getTaskId)
+                        Collectors.groupingBy(task -> Optional.ofNullable(task.getTaskId()).orElse("UNKNOWN_TASK"))
                 ));
 
+        // Sort funnels by their minimum order
         List<String> sortedFunnels = funnelMinOrders.entrySet().stream()
                 .sorted(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
                 .toList();
 
-        LinkedHashMap<String, List<TaskResponse>> result = new LinkedHashMap<>();
+        // Final response structure
+        Map<String, Object> response = new LinkedHashMap<>();
 
+        // 1️⃣ Regular tasks grouped by funnel
+        LinkedHashMap<String, List<TaskResponse>> tasksGroupedByFunnel = new LinkedHashMap<>();
         for (String funnel : sortedFunnels) {
             List<TaskResponse> funnelTasks = tasksByFunnelAndId.getOrDefault(funnel, Collections.emptyMap())
                     .entrySet().stream()
                     .sorted(Map.Entry.comparingByValue(Comparator.comparing(list -> list.getFirst().getOrder())))
-                    .map(entry -> createTaskResponse(entry.getValue(), taskMetadata))
+                    .map(entry -> createTaskResponse(entry.getValue(), taskMetadata, false))
                     .collect(Collectors.toList());
 
-            result.put(funnel, funnelTasks);
+            tasksGroupedByFunnel.put(funnel, funnelTasks);
         }
-        return result;
+        response.put("tasksGroupedByFunnel", tasksGroupedByFunnel);
+
+        // 2️⃣ Sendbacks grouped by requestId safely
+        Map<String, List<TaskResponse>> sendbackGroupedByRequestId = sendbackTasks.stream()
+                .collect(Collectors.groupingBy(
+                        task -> Optional.ofNullable(task.getRequestId()).orElse("UNKNOWN_REQUEST"),
+                        Collectors.mapping(log -> createTaskResponse(Collections.singletonList(log), taskMetadata, true), Collectors.toList())
+                ));
+        response.put("sendbackTasks", sendbackGroupedByRequestId);
+
+        // 3️⃣ Latest task state for the application
+        TaskExecutionLog latestLog = tasks.stream()
+                .max(Comparator.comparing(TaskExecutionLog::getUpdatedAt))
+                .orElse(null);
+
+        if (latestLog != null) {
+            response.put("latestTaskState", Map.of(
+                    "taskId", Optional.ofNullable(latestLog.getTaskId()).orElse("UNKNOWN_TASK"),
+                    "order", latestLog.getOrder(),
+                    "handledBy", latestLog.getHandledBy(),
+                    "createdAt", latestLog.getCreatedAt(),
+                    "status", latestLog.getStatus(),
+                    "updatedAt", latestLog.getUpdatedAt(),
+                    "duration", taskMetadata.getOrDefault(latestLog.getTaskId(), new LoanDuration.Task()).getDuration(),
+                    "sendbacks", taskMetadata.getOrDefault(latestLog.getTaskId(), new LoanDuration.Task()).getSendbacks(),
+                    "visited", taskMetadata.getOrDefault(latestLog.getTaskId(), new LoanDuration.Task()).getVisited()
+            ));
+        } else {
+            response.put("latestTaskState", null);
+        }
+
+        return response;
     }
 
-    private TaskResponse createTaskResponse(List<TaskExecutionLog> logs, Map<String, LoanDuration.Task> taskMetadata) {
+
+    private TaskResponse createTaskResponse(List<TaskExecutionLog> logs, Map<String, LoanDuration.Task> taskMetadata, boolean isSendback) {
         TaskExecutionLog firstLog = logs.getFirst();
 
         List<StatusLogResponse> statusLogs = logs.stream()
@@ -96,10 +150,8 @@ public class ApplicationServiceImpl implements ApplicationService {
         int sendbacks = metadata != null ? metadata.getSendbacks() : 0;
         int visited = metadata != null ? metadata.getVisited() : 0;
 
-        String targetTaskId = null;
-        if ("sendback".equalsIgnoreCase(firstLog.getTaskId())) {
-            targetTaskId = fetchTargetTaskId(firstLog);
-        }
+        // Fetch targetTaskId only if it’s a sendback task
+        String targetTaskId = isSendback ? fetchTargetTaskId(firstLog) : null;
 
         return new TaskResponse(
                 firstLog.getTaskId(),
@@ -115,7 +167,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     private String fetchTargetTaskId(TaskExecutionLog log) {
-        Map<String, Object> sendbackMetadata = (Map<String, Object>) log.getMetadata().get("sendbackMetadata");
+        Map<String, Object> sendbackMetadata = (Map<String, Object>) log.getSendbackMetadata();
         if (sendbackMetadata != null && sendbackMetadata.containsKey("key")) {
             String sendbackKey = (String) sendbackMetadata.get("key");
             return sendbackConfigDao.findBySendbackKey(sendbackKey)
@@ -124,6 +176,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
         return null;
     }
+
 
     private List<FunnelGroup> groupTasksByFunnel(List<TaskDetails> sortedTasks) {
         List<FunnelGroup> funnelGroups = new ArrayList<>();
@@ -155,3 +208,4 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
 }
+

@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 //@RequiredArgsConstructor
 @RequestMapping("/applicationLog")
@@ -24,15 +26,9 @@ public class ApplicationController {
 
 
     @GetMapping("/{applicationId}")
-    public ApiResponse getTasksByApplicationId(@PathVariable String applicationId) {
-        TaskGroupedResponse responseData = new TaskGroupedResponse(applicationService.getTasksGroupedByFunnel(applicationId));
-        ApiResponse response = new ApiResponse();
-        response.setData(responseData);
-        response.setService("TaskManagementService");
-        response.setMessage("Tasks fetched successfully");
-        response.setSuccess(true);
-        response.setStatusCode(HttpStatus.OK.value());
-        return response;
+    public Map<String, Object> getTasksByApplicationId(@PathVariable String applicationId) {
+
+        return applicationService.getTasksGroupedByFunnel(applicationId);
     }
 
     @GetMapping("/graph/{applicationId}")

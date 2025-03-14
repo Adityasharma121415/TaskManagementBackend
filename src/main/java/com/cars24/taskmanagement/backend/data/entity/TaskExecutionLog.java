@@ -33,10 +33,12 @@ public class TaskExecutionLog {
     private String status;
     private String executionType;
     private Map<String, Object> metadata;
+    private Map<String, Object> sendbackMetadata;
     private Map<String, Object> inputResourceValueMap;
     private Date createdAt;
     private Date updatedAt;
     private String handledBy;
+    private String requestId;
 
 
 }
