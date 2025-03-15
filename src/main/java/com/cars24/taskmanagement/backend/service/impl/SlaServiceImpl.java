@@ -5,10 +5,11 @@ import com.cars24.taskmanagement.backend.data.entity.SubTaskEntity;
 import com.cars24.taskmanagement.backend.data.entity.TaskExecutionTimeEntity;
 import com.cars24.taskmanagement.backend.exceptions.SlaException;
 import com.cars24.taskmanagement.backend.data.response.SlaResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.stream.Collectors;
-
+@Slf4j
 @Service
 public class SlaServiceImpl implements com.cars24.taskmanagement.backend.service.SlaService {
 
@@ -23,6 +24,8 @@ public class SlaServiceImpl implements com.cars24.taskmanagement.backend.service
         if (executions.isEmpty()) {
             throw new SlaException("No data found for channel: " + channel);
         }
+
+        log.info("Received request for SLA service of channel: {}", channel);
 
 
         Map<String, List<Long>> taskDurations = new LinkedHashMap<>();
