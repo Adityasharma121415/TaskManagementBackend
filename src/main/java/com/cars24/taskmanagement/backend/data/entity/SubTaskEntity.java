@@ -43,11 +43,11 @@ public class SubTaskEntity {
                     this.duration += updatedAt.toEpochMilli() - this.new_time.toEpochMilli();
                     this.sendbacks++;
                 }
-                // If neither condition is met, completed_time remains null
+
                 break;
 
             case "SENDBACK":
-                this.sendback_time = updatedAt; // Always set this first
+                this.sendback_time = updatedAt;
 
                 if (this.todo_time != null && this.visited > 1) {
                     this.duration += updatedAt.toEpochMilli() - this.todo_time.toEpochMilli();
@@ -64,9 +64,14 @@ public class SubTaskEntity {
             case "NEW":
                 this.new_time = updatedAt;
                 break;
+
+            case "SKIPPED":
+                this.duration += updatedAt.toEpochMilli() - this.new_time.toEpochMilli();
+                break;
+
         }
 
-        // Always update the updatedAt field
+
         this.updatedAt = updatedAt;
     }
 }
