@@ -1,179 +1,211 @@
 package com.cars24.taskmanagement.backend.service.impl;
+
 import com.cars24.taskmanagement.backend.data.dao.ApplicationDao;
-import com.cars24.taskmanagement.backend.data.entity.LoanDuration;
-import com.cars24.taskmanagement.backend.data.entity.TaskExecutionLog;
-import com.cars24.taskmanagement.backend.data.response.FunnelGroup;
-import com.cars24.taskmanagement.backend.data.response.TaskDetails;
-import com.cars24.taskmanagement.backend.data.response.TasksResponse;
-import com.cars24.taskmanagement.backend.data.response.dto.FunnelResponse;
-import com.cars24.taskmanagement.backend.data.response.dto.StatusLogResponse;
-import com.cars24.taskmanagement.backend.data.response.dto.TaskResponse;
+import com.cars24.taskmanagement.backend.data.dao.impl.SendbackConfigDao;
+import com.cars24.taskmanagement.backend.data.entity.LoanDurationEntity;
+import com.cars24.taskmanagement.backend.data.entity.TaskExecutionLogEntity;
+import com.cars24.taskmanagement.backend.data.response.applicationDto.FunnelGroupResponse;
+import com.cars24.taskmanagement.backend.data.response.applicationDto.TaskDetailsResponse;
+import com.cars24.taskmanagement.backend.data.response.applicationDto.ListFunnelGroupResponse;
+import com.cars24.taskmanagement.backend.data.response.applicationDto.StatusLogResponse;
+import com.cars24.taskmanagement.backend.data.response.applicationDto.TaskResponse;
 import com.cars24.taskmanagement.backend.service.ApplicationService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
-
+@RequiredArgsConstructor
 public class ApplicationServiceImpl implements ApplicationService {
 
     private static final String UNKNOWN_FUNNEL = "Unknown Funnel";
+    private final ApplicationDao taskExecutionDao;
+    private final SendbackConfigDao sendbackConfigDao;
 
-    @Autowired
-    ApplicationDao taskExecutionDao;
+    @Override
+    public ListFunnelGroupResponse getTasksByApplicationId(String applicationId) {
+        List<TaskExecutionLogEntity> sortedTasks = taskExecutionDao.findTasksByApplicationIdSortedByUpdatedAt(applicationId);
+        List<TaskDetailsResponse> taskDetailsResponseList = sortedTasks.stream()
+                .map(this::convertToTaskDetails)
+                .collect(Collectors.toList());
+        List<FunnelGroupResponse> funnelGroupResponses = groupTasksByFunnel(taskDetailsResponseList);
+        return new ListFunnelGroupResponse(funnelGroupResponses);
+    }
 
-//    @Autowired
-//    public ApplicationServiceImpl(ApplicationDao taskExecutionDao) {
-//        this.taskExecutionDao = taskExecutionDao;
-//    }
-
-    public Map<String, FunnelResponse> getTasksGroupedByFunnel(String applicationId) {
-        // Fetch tasks and loan duration
+    @Override
+    public Map<String, Object> getTasksGroupedByFunnel(String applicationId) {
         Map<String, Object> data = taskExecutionDao.findTasksAndLoanDurationByApplicationId(applicationId);
-        List<TaskExecutionLog> tasks = (List<TaskExecutionLog>) data.get("tasks");
-        LoanDuration loanDuration = (LoanDuration) data.get("loanDuration");
+        List<TaskExecutionLogEntity> tasks = (List<TaskExecutionLogEntity>) data.getOrDefault("tasks", Collections.emptyList());
+        LoanDurationEntity loanDurationEntity = (LoanDurationEntity) data.get("loanDurationEntity");
 
-        // Create a map for task metadata (duration, sendbacks, visited)
-        Map<String, LoanDuration.Task> taskMetadata = Optional.ofNullable(loanDuration)
+        // Separate sendback tasks
+        List<TaskExecutionLogEntity> sendbackTasks = tasks.stream()
+                .filter(task -> "sendback".equalsIgnoreCase(task.getTaskId()))
+                .toList();
+
+        // Remove sendback tasks from regular tasks
+        List<TaskExecutionLogEntity> regularTasks = tasks.stream()
+                .filter(task -> !"sendback".equalsIgnoreCase(task.getTaskId()))
+                .toList();
+
+        // Find minimum order for each funnel (excluding sendbacks)
+        Map<String, Integer> funnelMinOrders = regularTasks.stream()
+                .collect(Collectors.groupingBy(
+                        task -> Optional.ofNullable(task.getFunnel()).orElse(UNKNOWN_FUNNEL),
+                        Collectors.mapping(TaskExecutionLogEntity::getOrder, Collectors.minBy(Integer::compare))
+                ))
+                .entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> entry.getValue().orElse(Integer.MAX_VALUE)
+                ));
+
+        // Fetch task metadata from LoanDurationEntity
+        Map<String, LoanDurationEntity.Task> taskMetadata = Optional.ofNullable(loanDurationEntity)
                 .map(ld -> Stream.of(ld.getSourcing(), ld.getCredit(), ld.getConversion(), ld.getFulfillment())
                         .filter(Objects::nonNull)
                         .flatMap(Collection::stream)
-                        .collect(Collectors.toMap(LoanDuration.Task::getTaskId, task -> task))
+                        .collect(Collectors.toMap(
+                                task -> Optional.ofNullable(task.getTaskId()).orElse("UNKNOWN_TASK"),
+                                task -> task,
+                                (a, b) -> a
+                        ))
                 ).orElse(Collections.emptyMap());
 
-        // Group tasks by funnel -> taskId -> logs
-        Map<String, Map<String, List<TaskExecutionLog>>> tasksByFunnelAndId = tasks.stream()
+        // Group regular tasks by Funnel & Task ID safely
+        Map<String, Map<String, List<TaskExecutionLogEntity>>> tasksByFunnelAndId = regularTasks.stream()
                 .collect(Collectors.groupingBy(
-                        task -> Optional.ofNullable(task.getFunnel()).orElse("UNKNOWN"),
-                        Collectors.groupingBy(TaskExecutionLog::getTaskId)
+                        task -> Optional.ofNullable(task.getFunnel()).orElse(UNKNOWN_FUNNEL),
+                        Collectors.groupingBy(task -> Optional.ofNullable(task.getTaskId()).orElse("UNKNOWN_TASK"))
                 ));
 
-        // Sort funnels based on minimum order
-        List<String> sortedFunnels = tasks.stream()
-                .collect(Collectors.groupingBy(
-                        task -> Optional.ofNullable(task.getFunnel()).orElse("UNKNOWN"),
-                        Collectors.minBy(Comparator.comparingInt(TaskExecutionLog::getOrder))
-                ))
-                .entrySet().stream()
-                .sorted(Map.Entry.comparingByValue(Comparator.comparing(o -> o.map(TaskExecutionLog::getOrder).orElse(Integer.MAX_VALUE))))
+        // Sort funnels by their minimum order
+        List<String> sortedFunnels = funnelMinOrders.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
-                .collect(Collectors.toList());
+                .toList();
 
-        // Transform into final response
-        LinkedHashMap<String, FunnelResponse> result = new LinkedHashMap<>();
+        // Final response structure
+        Map<String, Object> response = new LinkedHashMap<>();
 
+        // Regular tasks grouped by funnel
+        LinkedHashMap<String, List<TaskResponse>> tasksGroupedByFunnel = new LinkedHashMap<>();
         for (String funnel : sortedFunnels) {
             List<TaskResponse> funnelTasks = tasksByFunnelAndId.getOrDefault(funnel, Collections.emptyMap())
                     .entrySet().stream()
-                    .sorted(Map.Entry.comparingByValue(Comparator.comparing(list -> list.get(0).getOrder())))
-                    .map(entry -> {
-                        List<TaskExecutionLog> logs = entry.getValue();
-                        TaskExecutionLog firstLog = logs.get(0);
-
-                        // Create status history sorted by updatedAt
-                        List<StatusLogResponse> statusLogs = logs.stream()
-                                .sorted(Comparator.comparing(TaskExecutionLog::getUpdatedAt))
-                                .map(log -> new StatusLogResponse(log.getStatus(), log.getUpdatedAt()))
-                                .collect(Collectors.toList());
-
-                        // Create TaskResponse
-                        TaskResponse taskResponse = new TaskResponse(
-                                firstLog.getTaskId(),
-                                firstLog.getOrder(),
-                                firstLog.getHandledBy(),
-                                firstLog.getCreatedAt(),
-                                statusLogs
-                        );
-
-                        // Attach metadata if available
-                        LoanDuration.Task metadata = taskMetadata.get(firstLog.getTaskId());
-                        if (metadata != null) {
-                            taskResponse.setDuration(metadata.getDuration());
-                            taskResponse.setSendbacks(metadata.getSendbacks());
-                            taskResponse.setVisited(metadata.getVisited());
-                        }
-
-                        return taskResponse;
-                    })
+                    .sorted(Map.Entry.comparingByValue(Comparator.comparing(list -> list.getFirst().getOrder())))
+                    .map(entry -> createTaskResponse(entry.getValue(), taskMetadata, false))
                     .collect(Collectors.toList());
 
-            // Compute total funnelDuration for this funnel
-            int funnelDuration = funnelTasks.stream()
-                    .mapToInt(task -> (int) taskMetadata.getOrDefault(task.getTaskId(), new LoanDuration.Task()).getDuration())
-                    .sum();
-            // Store the funnel group with duration
-            result.put(funnel, new FunnelResponse(funnel, funnelDuration, funnelTasks));
+            tasksGroupedByFunnel.put(funnel, funnelTasks);
+        }
+        response.put("tasksGroupedByFunnel", tasksGroupedByFunnel);
+
+        //  Sendbacks grouped by requestId safely
+        Map<String, List<TaskResponse>> sendbackGroupedByRequestId = sendbackTasks.stream()
+                .collect(Collectors.groupingBy(
+                        task -> Optional.ofNullable(task.getRequestId()).orElse("UNKNOWN_REQUEST"),
+                        Collectors.mapping(log -> createTaskResponse(Collections.singletonList(log), taskMetadata, true), Collectors.toList())
+                ));
+        response.put("sendbackTasks", sendbackGroupedByRequestId);
+
+        //  Latest task state for the application
+        TaskExecutionLogEntity latestLog = tasks.stream()
+                .max(Comparator.comparing(TaskExecutionLogEntity::getUpdatedAt))
+                .orElse(null);
+
+        if (latestLog != null) {
+            response.put("latestTaskState", Map.of(
+                    "taskId", Optional.ofNullable(latestLog.getTaskId()).orElse("UNKNOWN_TASK"),
+                    "order", latestLog.getOrder(),
+                    "handledBy", latestLog.getHandledBy(),
+                    "createdAt", latestLog.getCreatedAt(),
+                    "status", latestLog.getStatus(),
+                    "updatedAt", latestLog.getUpdatedAt(),
+                    "duration", taskMetadata.getOrDefault(latestLog.getTaskId(), new LoanDurationEntity.Task()).getDuration(),
+                    "sendbacks", taskMetadata.getOrDefault(latestLog.getTaskId(), new LoanDurationEntity.Task()).getSendbacks(),
+                    "visited", taskMetadata.getOrDefault(latestLog.getTaskId(), new LoanDurationEntity.Task()).getVisited()
+            ));
+        } else {
+            response.put("latestTaskState", null);
         }
 
-        return result;
-    }
-
-
-    @Override
-    public TasksResponse getTasksByApplicationId(String applicationId) {
-        // Use the DAO to get sorted tasks from the repository
-        List<TaskExecutionLog> sortedTasks = taskExecutionDao.findTasksByApplicationIdSortedByUpdatedAt(applicationId);
-
-        // Convert to TaskDetails
-        List<TaskDetails> taskDetailsList = sortedTasks.stream()
-                .map(this::convertToTaskDetails)
-                .collect(Collectors.toList());
-
-        // Group consecutive tasks of the same funnel
-        List<FunnelGroup> funnelGroups = groupTasksByFunnel(taskDetailsList);
-
-        TasksResponse response = new TasksResponse();
-        response.setFunnelGroups(funnelGroups);
         return response;
     }
 
-    private List<FunnelGroup> groupTasksByFunnel(List<TaskDetails> sortedTasks) {
-        List<FunnelGroup> funnelGroups = new ArrayList<>();
 
-        if (sortedTasks.isEmpty()) {
-            return funnelGroups;
-        }
+    private TaskResponse createTaskResponse(List<TaskExecutionLogEntity> logs, Map<String, LoanDurationEntity.Task> taskMetadata, boolean isSendback) {
+        TaskExecutionLogEntity firstLog = logs.getFirst();
 
-        String currentFunnel = null;
-        FunnelGroup currentGroup = null;
+        List<StatusLogResponse> statusLogs = logs.stream()
+                .sorted(Comparator.comparing(TaskExecutionLogEntity::getUpdatedAt))
+                .map(log -> new StatusLogResponse(log.getStatus(), log.getUpdatedAt()))
+                .collect(Collectors.toList());
 
-        for (TaskDetails task : sortedTasks) {
-            // Handle null funnel by replacing with "Unknown Funnel"
-            String taskFunnel = (task.getFunnel() != null) ? task.getFunnel() : UNKNOWN_FUNNEL;
+        LoanDurationEntity.Task metadata = taskMetadata.get(firstLog.getTaskId());
+        long duration = metadata != null ? metadata.getDuration() : 0;
+        int sendbacks = metadata != null ? metadata.getSendbacks() : 0;
+        int visited = metadata != null ? metadata.getVisited() : 0;
 
-            // If this is a new funnel or the first task
-            if (currentFunnel == null || !currentFunnel.equals(taskFunnel)) {
-                currentFunnel = taskFunnel;
-                currentGroup = new FunnelGroup();
-                currentGroup.setFunnelName(taskFunnel);
-                currentGroup.setTasks(new ArrayList<>());
-                funnelGroups.add(currentGroup);
-            }
 
-            // Add task to the current funnel group
-            currentGroup.getTasks().add(task);
-        }
+        String targetTaskId = isSendback ? fetchTargetTaskId(firstLog) : null;
 
-        return funnelGroups;
+        return new TaskResponse(
+                firstLog.getTaskId(),
+                firstLog.getOrder(),
+                firstLog.getHandledBy(),
+                firstLog.getCreatedAt(),
+                statusLogs,
+                targetTaskId,
+                duration,
+                sendbacks,
+                visited
+        );
     }
 
-    private TaskDetails convertToTaskDetails(TaskExecutionLog log) {
-        TaskDetails details = new TaskDetails();
-
-        details.setTaskId(log.getTaskId());
-
-        // Handle null funnel in the conversion process
-        details.setFunnel(log.getFunnel() != null ? log.getFunnel() : UNKNOWN_FUNNEL);
-
-        details.setActorId(log.getActorId());
-        details.setStatus(log.getStatus());
-
-        details.setUpdatedAt(log.getUpdatedAt());
-        details.setMetadata(log.getMetadata());
-
-        return details;
+    private String fetchTargetTaskId(TaskExecutionLogEntity log) {
+        Map<String, Object> sendbackMetadata = (Map<String, Object>) log.getSendbackMetadata();
+        if (sendbackMetadata != null && sendbackMetadata.containsKey("key")) {
+            String sendbackKey = (String) sendbackMetadata.get("key");
+            return sendbackConfigDao.findBySendbackKey(sendbackKey)
+                    .map(config -> !config.getSubReasonList().isEmpty() ? config.getSubReasonList().get(0).getTargetTaskId() : null)
+                    .orElse(null);
+        }
+        return null;
     }
+
+
+    private List<FunnelGroupResponse> groupTasksByFunnel(List<TaskDetailsResponse> sortedTasks) {
+        List<FunnelGroupResponse> funnelGroupResponses = new ArrayList<>();
+        if (sortedTasks.isEmpty()) return funnelGroupResponses;
+
+        Map<String, FunnelGroupResponse> funnelMap = new LinkedHashMap<>();
+        for (TaskDetailsResponse task : sortedTasks) {
+            String taskFunnel = Optional.ofNullable(task.getFunnel()).orElse(UNKNOWN_FUNNEL);
+            funnelMap.computeIfAbsent(taskFunnel, key -> new FunnelGroupResponse(taskFunnel, new ArrayList<>()))
+                    .getTasks().add(task);
+        }
+        return new ArrayList<>(funnelMap.values());
+    }
+
+    private TaskDetailsResponse convertToTaskDetails(TaskExecutionLogEntity log) {
+        String targetTaskId = "sendback".equalsIgnoreCase(log.getTaskId()) ? fetchTargetTaskId(log) : null;
+
+        return new TaskDetailsResponse(
+                Optional.ofNullable(log.getFunnel()).orElse(UNKNOWN_FUNNEL), // 1: Funnel
+                log.getActorId(),
+                log.getStatus(),
+                log.getUpdatedAt(),
+                log.getTaskId(),
+                targetTaskId,
+                0,
+                0,
+                log.getMetadata()
+        );
+    }
+
 }
+

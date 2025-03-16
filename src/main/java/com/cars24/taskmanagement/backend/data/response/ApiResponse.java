@@ -1,9 +1,6 @@
 package com.cars24.taskmanagement.backend.data.response;
 
-import com.cars24.taskmanagement.backend.data.response.dto.TaskGroupedResponse;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 
 @Data
