@@ -41,17 +41,14 @@ public class ApplicationServiceImpl implements ApplicationService {
         List<TaskExecutionLogEntity> tasks = (List<TaskExecutionLogEntity>) data.getOrDefault("tasks", Collections.emptyList());
         LoanDurationEntity loanDurationEntity = (LoanDurationEntity) data.get("loanDurationEntity");
 
-        // Separate sendback tasks
         List<TaskExecutionLogEntity> sendbackTasks = tasks.stream()
                 .filter(task -> "sendback".equalsIgnoreCase(task.getTaskId()))
                 .toList();
 
-        // Remove sendback tasks from regular tasks
         List<TaskExecutionLogEntity> regularTasks = tasks.stream()
                 .filter(task -> !"sendback".equalsIgnoreCase(task.getTaskId()))
                 .toList();
 
-        // Find minimum order for each funnel (excluding sendbacks)
         Map<String, Integer> funnelMinOrders = regularTasks.stream()
                 .collect(Collectors.groupingBy(
                         task -> Optional.ofNullable(task.getFunnel()).orElse(UNKNOWN_FUNNEL),
@@ -63,7 +60,6 @@ public class ApplicationServiceImpl implements ApplicationService {
                         entry -> entry.getValue().orElse(Integer.MAX_VALUE)
                 ));
 
-        // Fetch task metadata from LoanDurationEntity
         Map<String, LoanDurationEntity.Task> taskMetadata = Optional.ofNullable(loanDurationEntity)
                 .map(ld -> Stream.of(ld.getSourcing(), ld.getCredit(), ld.getConversion(), ld.getFulfillment())
                         .filter(Objects::nonNull)
@@ -75,7 +71,6 @@ public class ApplicationServiceImpl implements ApplicationService {
                         ))
                 ).orElse(Collections.emptyMap());
 
-        // Group regular tasks by Funnel & Task ID safely
         Map<String, Map<String, List<TaskExecutionLogEntity>>> tasksByFunnelAndId = regularTasks.stream()
                 .collect(Collectors.groupingBy(
                         task -> Optional.ofNullable(task.getFunnel()).orElse(UNKNOWN_FUNNEL),
@@ -88,11 +83,9 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .map(Map.Entry::getKey)
                 .toList();
 
-        // Final response structure
         Map<String, Object> response = new LinkedHashMap<>();
+        LinkedHashMap<String, Object> tasksGroupedByFunnel = new LinkedHashMap<>();
 
-        // Regular tasks grouped by funnel
-        LinkedHashMap<String, List<TaskResponse>> tasksGroupedByFunnel = new LinkedHashMap<>();
         for (String funnel : sortedFunnels) {
             List<TaskResponse> funnelTasks = tasksByFunnelAndId.getOrDefault(funnel, Collections.emptyMap())
                     .entrySet().stream()
@@ -100,11 +93,19 @@ public class ApplicationServiceImpl implements ApplicationService {
                     .map(entry -> createTaskResponse(entry.getValue(), taskMetadata, false))
                     .collect(Collectors.toList());
 
-            tasksGroupedByFunnel.put(funnel, funnelTasks);
+            long totalDuration = funnelTasks.stream().mapToLong(TaskResponse::getDuration).sum();
+
+            // Create funnel data with total duration
+            Map<String, Object> funnelData = new LinkedHashMap<>();
+            funnelData.put("funnel", funnel);
+            funnelData.put("funnelDuration", totalDuration);
+            funnelData.put("tasks", funnelTasks);
+
+            tasksGroupedByFunnel.put(funnel, funnelData);
         }
         response.put("tasksGroupedByFunnel", tasksGroupedByFunnel);
 
-        //  Sendbacks grouped by requestId safely
+        // Group sendback tasks by requestId safely
         Map<String, List<TaskResponse>> sendbackGroupedByRequestId = sendbackTasks.stream()
                 .collect(Collectors.groupingBy(
                         task -> Optional.ofNullable(task.getRequestId()).orElse("UNKNOWN_REQUEST"),
@@ -112,7 +113,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 ));
         response.put("sendbackTasks", sendbackGroupedByRequestId);
 
-        //  Latest task state for the application
+        // Latest task state for the application
         TaskExecutionLogEntity latestLog = tasks.stream()
                 .max(Comparator.comparing(TaskExecutionLogEntity::getUpdatedAt))
                 .orElse(null);
