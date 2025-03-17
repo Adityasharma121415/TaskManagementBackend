@@ -20,6 +20,7 @@ public class SlaServiceImpl implements com.cars24.taskmanagement.backend.service
         this.slaDao = slaDao;
     }
 
+    @Override
     public SlaResponse getSlaMetricsByChannel(String channel) {
         List<TaskExecutionTimeEntity> executions = slaDao.getTasksByChannel(channel);
         if (executions.isEmpty()) {
