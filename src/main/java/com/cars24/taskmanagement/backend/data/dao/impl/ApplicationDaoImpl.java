@@ -6,6 +6,7 @@ import com.cars24.taskmanagement.backend.data.entity.TaskExecutionLogEntity;
 
 import com.cars24.taskmanagement.backend.data.repository.LoanDurationRepository;
 import com.cars24.taskmanagement.backend.data.repository.TaskExecutionLogRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -13,7 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
+@Slf4j
 @Service
 public class ApplicationDaoImpl implements ApplicationDao {
 
@@ -39,8 +40,10 @@ public class ApplicationDaoImpl implements ApplicationDao {
         result.put("tasks", tasks);
 
         Optional<LoanDurationEntity> loanDuration = durationRepository.findByApplicationId(applicationId);
-        result.put("loanDuration", loanDuration.orElse(null));
-
+        result.put("loanDurationEntity", loanDuration.orElse(null));
+        log.info("findTasksAndLoanDurationByApplicationId called with applicationId: {}", tasks);
+        log.info("findTasksAndLoanDurationByApplicationId called with applicationId: {}", loanDuration);
         return result;
+
     }
 }
