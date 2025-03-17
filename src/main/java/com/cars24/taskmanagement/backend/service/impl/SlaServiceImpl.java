@@ -5,6 +5,7 @@ import com.cars24.taskmanagement.backend.data.entity.SubTaskEntity;
 import com.cars24.taskmanagement.backend.data.entity.TaskExecutionTimeEntity;
 import com.cars24.taskmanagement.backend.exceptions.SlaException;
 import com.cars24.taskmanagement.backend.data.response.SlaResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import java.util.*;
@@ -12,13 +13,12 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class SlaServiceImpl implements com.cars24.taskmanagement.backend.service.SlaService {
 
     private final SlaDaoImpl slaDao;
 
-    public SlaServiceImpl(SlaDaoImpl slaDao) {
-        this.slaDao = slaDao;
-    }
+
 
     @Override
     public SlaResponse getSlaMetricsByChannel(String channel) {
