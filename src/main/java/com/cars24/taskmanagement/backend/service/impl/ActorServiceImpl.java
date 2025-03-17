@@ -278,7 +278,7 @@ public class ActorServiceImpl implements ActorService {
             Integer retries = entry.getValue();
             Integer freq = frequencyOfTasksAcrossApplications.get(taskId);
 
-            Double average = (double) (retries / freq);
+            Double average = ((retries*1.0) / (freq*1.0));
             response.put(taskId, average);
         }
 
@@ -369,6 +369,7 @@ public class ActorServiceImpl implements ActorService {
                 if(status.equals("NEW") || status.equals("IN_PROGRESS") || status.equals("TODO")){
                     taskDetails.put("task_name", task.getTaskId());
                     taskDetails.put("application_id", applicationId);
+                    taskDetails.put("status", status);
                 }
                 if(!taskDetails.isEmpty()) {
                     tasksAssigned.add(taskDetails);
