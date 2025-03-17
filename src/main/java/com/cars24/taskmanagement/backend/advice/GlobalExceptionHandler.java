@@ -17,7 +17,7 @@ public class GlobalExceptionHandler {
         response.setSuccess(false);
         response.setMessage(exception.getMessage());
 
-        response.setService("APPUSER"+HttpStatus.BAD_REQUEST.value());
+        response.setService("APPAGNT"+HttpStatus.BAD_REQUEST.value());
         return ResponseEntity.badRequest().body(response);
 
     }

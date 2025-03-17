@@ -1,28 +1,46 @@
 package com.cars24.taskmanagement.backend.controller;
 
-
+import com.cars24.taskmanagement.backend.data.response.ApiResponse;
+import com.cars24.taskmanagement.backend.data.response.applicationDto.ListFunnelGroupResponse;
 import com.cars24.taskmanagement.backend.service.impl.ApplicationServiceImpl;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/tasks")
-@RequiredArgsConstructor
+@RequestMapping("/applicationLog")
+@CrossOrigin(origins = "http://localhost:5173")
 public class ApplicationController {
 
+    @Autowired
+    ApplicationServiceImpl applicationService;
 
-    private final ApplicationServiceImpl taskExecutionService;
 
-    @GetMapping("/byApplicationId/{applicationId}")
-    public Map<String, List<Map<String, Object>>> getTasksByApplicationId(@PathVariable String applicationId) {
-        return taskExecutionService.getTasksGroupedByFunnel(applicationId);
+    @GetMapping("/{applicationId}")
+    public ResponseEntity<ApiResponse> getTasksByApplicationId(@PathVariable String applicationId) {
+        Map<String, Object> tasksByApplicationId= applicationService.getTasksGroupedByFunnel(applicationId);
+        ApiResponse response = new ApiResponse();
+        response.setStatusCode(HttpStatus.OK.value());
+        response.setSuccess(true);
+        response.setMessage("Tasks retrieved successfully");
+        response.setService("APPUSER" + HttpStatus.OK.value());
+        response.setData(tasksByApplicationId);
+        return ResponseEntity.ok().body(response);
+    }
+
+    @GetMapping("/graph/{applicationId}")
+    public ResponseEntity<ApiResponse> getTasksByApplicationIdDC(@PathVariable String applicationId) {
+        ListFunnelGroupResponse listFunnelGroupResponse = applicationService.getTasksByApplicationId(applicationId);
+        ApiResponse response = new ApiResponse();
+        response.setStatusCode(HttpStatus.OK.value());
+        response.setSuccess(true);
+        response.setMessage("Tasks retrieved successfully");
+        response.setService("APPUSER" + HttpStatus.OK.value());
+        response.setData(listFunnelGroupResponse);
+
+        return ResponseEntity.ok().body(response);
     }
 }
-
-
