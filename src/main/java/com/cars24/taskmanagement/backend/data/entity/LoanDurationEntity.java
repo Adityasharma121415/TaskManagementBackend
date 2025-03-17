@@ -6,7 +6,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.util.List;
 
 @Data
-@Document(collection = "duration")
+@Document(collection = "task_execution_time")
 public class LoanDurationEntity {
 
     @Id

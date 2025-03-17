@@ -9,7 +9,7 @@ import java.util.Map;
 
 
 @Data
-@Document(collection = "modified_task_execution_log")
+@Document(collection = "task_execution_log")
 public class TaskExecutionLogEntity {
 
 
