@@ -39,8 +39,9 @@ public class ApplicationDaoImpl implements ApplicationDao {
         result.put("tasks", tasks);
 
         Optional<LoanDurationEntity> loanDuration = durationRepository.findByApplicationId(applicationId);
-        result.put("loanDuration", loanDuration.orElse(null));
-
+        result.put("loanDurationEntity", loanDuration.orElse(null));
+        
         return result;
+
     }
 }

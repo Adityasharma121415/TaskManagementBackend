@@ -11,12 +11,14 @@ import com.cars24.taskmanagement.backend.data.response.applicationDto.StatusLogR
 import com.cars24.taskmanagement.backend.data.response.applicationDto.TaskResponse;
 import com.cars24.taskmanagement.backend.service.ApplicationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ApplicationServiceImpl implements ApplicationService {
@@ -34,7 +36,6 @@ public class ApplicationServiceImpl implements ApplicationService {
         List<FunnelGroupResponse> funnelGroupResponses = groupTasksByFunnel(taskDetailsResponseList);
         return new ListFunnelGroupResponse(funnelGroupResponses);
     }
-
 
     @Override
     public Map<String, Object> getTasksGroupedByFunnel(String applicationId) {
@@ -66,7 +67,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                         .filter(Objects::nonNull)
                         .flatMap(Collection::stream)
                         .collect(Collectors.toMap(
-                                task -> Optional.ofNullable(task.getTaskId()).orElse("UNKNOWN_TASK"),
+                                task -> task.getTaskId(),
                                 task -> task,
                                 (a, b) -> a
                         ))
@@ -93,8 +94,10 @@ public class ApplicationServiceImpl implements ApplicationService {
                     .map(entry -> createTaskResponse(entry.getValue(), taskMetadata, false))
                     .collect(Collectors.toList());
 
+            // Calculate total duration for the funnel
             long totalDuration = funnelTasks.stream().mapToLong(TaskResponse::getDuration).sum();
 
+            // Create funnel data with total duration
             Map<String, Object> funnelData = new LinkedHashMap<>();
             funnelData.put("funnel", funnel);
             funnelData.put("funnelDuration", totalDuration);
@@ -117,7 +120,7 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         if (latestLog != null) {
             response.put("latestTaskState", Map.of(
-                    "taskId", latestLog.getTaskId(),
+                    "taskId", Optional.ofNullable(latestLog.getTaskId()).orElse("UNKNOWN_TASK"),
                     "order", latestLog.getOrder(),
                     "handledBy", latestLog.getHandledBy(),
                     "createdAt", latestLog.getCreatedAt(),
@@ -134,9 +137,9 @@ public class ApplicationServiceImpl implements ApplicationService {
         return response;
     }
 
-
-
-    private TaskResponse createTaskResponse(List<TaskExecutionLogEntity> logs, Map<String, LoanDurationEntity.Task> taskMetadata, boolean isSendback) {
+    private TaskResponse createTaskResponse(List<TaskExecutionLogEntity> logs,
+                                            Map<String, LoanDurationEntity.Task> taskMetadata,
+                                            boolean isSendback) {
         TaskExecutionLogEntity firstLog = logs.getFirst();
 
         List<StatusLogResponse> statusLogs = logs.stream()
@@ -144,12 +147,12 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .map(log -> new StatusLogResponse(log.getStatus(), log.getUpdatedAt()))
                 .collect(Collectors.toList());
 
-        LoanDurationEntity.Task metadata = taskMetadata.get(firstLog.getTaskId());
+        LoanDurationEntity.Task metadata = taskMetadata.getOrDefault(firstLog.getTaskId(), null);
         long duration = metadata != null ? metadata.getDuration() : 0;
         int sendbacks = metadata != null ? metadata.getSendbacks() : 0;
         int visited = metadata != null ? metadata.getVisited() : 0;
 
-
+        // Fetch targetTaskId only if it's a sendback task
         String targetTaskId = isSendback ? fetchTargetTaskId(firstLog) : null;
 
         return new TaskResponse(
@@ -167,24 +170,26 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     private String fetchTargetTaskId(TaskExecutionLogEntity log) {
         Map<String, Object> sendbackMetadata = (Map<String, Object>) log.getSendbackMetadata();
+
+
         if (sendbackMetadata != null && sendbackMetadata.containsKey("key")) {
             String sendbackKey = (String) sendbackMetadata.get("key");
             return sendbackConfigDao.findBySendbackKey(sendbackKey)
-                    .map(config -> !config.getSubReasonList().isEmpty() ? config.getSubReasonList().get(0).getTargetTaskId() : null)
-                    .orElse(null);
+                    .map(config -> {
+                        if (!config.getSubReasonList().isEmpty()) {
+                            return config.getSubReasonList().get(0).getTargetTaskId();
+                        }
+                        return null; // Return null if the list is empty
+                    })
+                    .orElse(null); // Return null if no configuration is found
         }
-        return null;
+        return null; // Return null if the key is not found in the metadata
     }
 
-
     private List<FunnelGroupResponse> groupTasksByFunnel(List<TaskDetailsResponse> sortedTasks) {
-        List<FunnelGroupResponse> funnelGroupResponses = new ArrayList<>();
-        if (sortedTasks.isEmpty()) return funnelGroupResponses;
-
         Map<String, FunnelGroupResponse> funnelMap = new LinkedHashMap<>();
         for (TaskDetailsResponse task : sortedTasks) {
-            String taskFunnel = Optional.ofNullable(task.getFunnel()).orElse(UNKNOWN_FUNNEL);
-            funnelMap.computeIfAbsent(taskFunnel, key -> new FunnelGroupResponse(taskFunnel, new ArrayList<>()))
+            funnelMap.computeIfAbsent(task.getFunnel(), key -> new FunnelGroupResponse(task.getFunnel(), new ArrayList<>()))
                     .getTasks().add(task);
         }
         return new ArrayList<>(funnelMap.values());
@@ -205,6 +210,4 @@ public class ApplicationServiceImpl implements ApplicationService {
                 log.getMetadata()
         );
     }
-
 }
-
