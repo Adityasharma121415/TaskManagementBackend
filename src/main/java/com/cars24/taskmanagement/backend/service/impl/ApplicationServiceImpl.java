@@ -35,6 +35,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         return new ListFunnelGroupResponse(funnelGroupResponses);
     }
 
+
     @Override
     public Map<String, Object> getTasksGroupedByFunnel(String applicationId) {
         Map<String, Object> data = taskExecutionDao.findTasksAndLoanDurationByApplicationId(applicationId);
@@ -77,7 +78,6 @@ public class ApplicationServiceImpl implements ApplicationService {
                         Collectors.groupingBy(task -> Optional.ofNullable(task.getTaskId()).orElse("UNKNOWN_TASK"))
                 ));
 
-        // Sort funnels by their minimum order
         List<String> sortedFunnels = funnelMinOrders.entrySet().stream()
                 .sorted(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
@@ -95,7 +95,6 @@ public class ApplicationServiceImpl implements ApplicationService {
 
             long totalDuration = funnelTasks.stream().mapToLong(TaskResponse::getDuration).sum();
 
-            // Create funnel data with total duration
             Map<String, Object> funnelData = new LinkedHashMap<>();
             funnelData.put("funnel", funnel);
             funnelData.put("funnelDuration", totalDuration);
@@ -105,7 +104,6 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
         response.put("tasksGroupedByFunnel", tasksGroupedByFunnel);
 
-        // Group sendback tasks by requestId safely
         Map<String, List<TaskResponse>> sendbackGroupedByRequestId = sendbackTasks.stream()
                 .collect(Collectors.groupingBy(
                         task -> Optional.ofNullable(task.getRequestId()).orElse("UNKNOWN_REQUEST"),
@@ -113,14 +111,13 @@ public class ApplicationServiceImpl implements ApplicationService {
                 ));
         response.put("sendbackTasks", sendbackGroupedByRequestId);
 
-        // Latest task state for the application
         TaskExecutionLogEntity latestLog = tasks.stream()
                 .max(Comparator.comparing(TaskExecutionLogEntity::getUpdatedAt))
                 .orElse(null);
 
         if (latestLog != null) {
             response.put("latestTaskState", Map.of(
-                    "taskId", Optional.ofNullable(latestLog.getTaskId()).orElse("UNKNOWN_TASK"),
+                    "taskId", latestLog.getTaskId(),
                     "order", latestLog.getOrder(),
                     "handledBy", latestLog.getHandledBy(),
                     "createdAt", latestLog.getCreatedAt(),
@@ -136,6 +133,7 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         return response;
     }
+
 
 
     private TaskResponse createTaskResponse(List<TaskExecutionLogEntity> logs, Map<String, LoanDurationEntity.Task> taskMetadata, boolean isSendback) {
