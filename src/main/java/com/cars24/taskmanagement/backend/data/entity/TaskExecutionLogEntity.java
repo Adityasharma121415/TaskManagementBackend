@@ -9,8 +9,9 @@ import java.util.Map;
 
 
 @Data
-@Document(collection = "saarathi_bff_db.task_execution_log")
-public class TaskExecutionLog {
+@Document(collection = "task_execution_log")
+public class TaskExecutionLogEntity {
+
 
     @Id
     private String id;
@@ -31,8 +32,12 @@ public class TaskExecutionLog {
     private String status;
     private String executionType;
     private Map<String, Object> metadata;
+    private Map<String, Object> sendbackMetadata;
     private Map<String, Object> inputResourceValueMap;
     private Date createdAt;
     private Date updatedAt;
     private String handledBy;
+    private String requestId;
+
+
 }
