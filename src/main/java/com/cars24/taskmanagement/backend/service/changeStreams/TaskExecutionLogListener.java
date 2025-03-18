@@ -1,6 +1,5 @@
 package com.cars24.taskmanagement.backend.service.changeStreams;
 
-import com.cars24.taskmanagement.backend.data.enums.SendbackReasons;
 import com.cars24.taskmanagement.backend.service.redisCache.RedisCacheService;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.ReplaceOptions;
@@ -76,7 +75,6 @@ public class TaskExecutionLogListener {
         String applicationId = fullDocument.getString("applicationId");
         String taskId = fullDocument.getString("taskId");
         String status = fullDocument.getString("status");
-        String statusReason = fullDocument.getString("statusReason");
         Instant updatedAt = fullDocument.getDate("updatedAt").toInstant();
 
         int initialTask = 0;
@@ -84,12 +82,10 @@ public class TaskExecutionLogListener {
             initialTask = initializeActorMetrics(actorId, applicationId, taskId, status, updatedAt);
         }
 
-        boolean actorMistake = checkActorMistake(statusReason);
-
         if ("NEW".equals(status) || "TODO".equals(status)) {
             redisCacheService.storeTaskStartTime(applicationId, taskId, actorId, updatedAt);
             if(initialTask == 0){
-                updateActorMetrics(actorId, applicationId, taskId, status, 0L, updatedAt, actorMistake);
+                updateActorMetrics(actorId, applicationId, taskId, status, 0L, updatedAt);
             }
         }
         else if ("COMPLETED".equals(status) || "FAILED".equals(status) || "SENDBACK".equals(status)) {
@@ -97,7 +93,7 @@ public class TaskExecutionLogListener {
             if (startUpdatedAt != null) {
                 long duration = updatedAt.toEpochMilli() - startUpdatedAt.toEpochMilli();
                 log.info("TaskExecutionLogListener [processChange] Duration: {}", duration);
-                updateActorMetrics(actorId, applicationId, taskId, status, duration, updatedAt, actorMistake);
+                updateActorMetrics(actorId, applicationId, taskId, status, duration, updatedAt);
                 redisCacheService.removeTaskStartTime(applicationId, taskId, actorId);
             }
         }
@@ -142,20 +138,8 @@ public class TaskExecutionLogListener {
         return initialTask;
     }
 
-    private boolean checkActorMistake(String statusReason) {
-        if (statusReason == null) {
-            return false;
-        }
-        for (SendbackReasons reason : SendbackReasons.values()) {
-            if (statusReason.contains(reason.name())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void updateActorMetrics(String actorId, String applicationId, String taskId, String status, long duration, Instant updatedAt, boolean actorMistake) {
-        log.info("TaskExecutionLogListener [updateActorMetrics] {} {} {} {} {} {} {}", actorId, applicationId, taskId, status, duration, updatedAt, actorMistake);
+    private void updateActorMetrics(String actorId, String applicationId, String taskId, String status, long duration, Instant updatedAt) {
+        log.info("TaskExecutionLogListener [updateActorMetrics] {} {} {} {} {} {}", actorId, applicationId, taskId, status, duration, updatedAt);
 
         Query query = new Query(Criteria.where("applicationId").is(applicationId).and("actorId").is(actorId));
         Document existingDocument = mongoTemplate.findOne(query, Document.class, "actor_metrics");
@@ -179,10 +163,8 @@ public class TaskExecutionLogListener {
         if (existingTask != null) {
             update.set("tasks.$.status", status);
 
-            if ("NEW".equals(status) || "TODO".equals(status) || "IN_PROGRESS".equals(status)) {
-                if(actorMistake){
-                    update.inc("tasks.$.visited", 1);
-                }
+            if ("NEW".equals(status) || "TODO".equals(status)) {
+                update.inc("tasks.$.visited", 1);
             }
 
             if (!"NEW".equals(status) && !"TODO".equals(status)) {
@@ -196,7 +178,7 @@ public class TaskExecutionLogListener {
             Document newTask = new Document()
                     .append("taskId", taskId)
                     .append("status", status)
-                    .append("visited", actorMistake ? 1 : 0)
+                    .append("visited", "NEW".equals(status) || "TODO".equals(status) ? 1 : 0)
                     .append("duration", 0);
 
             update.push("tasks", newTask);
