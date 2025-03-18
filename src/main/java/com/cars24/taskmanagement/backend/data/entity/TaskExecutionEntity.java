@@ -4,18 +4,15 @@ import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Map;
 
-
 @Data
-@Document(collection = "task_execution_log")
-public class TaskExecutionLogEntity {
-
-
+@Document(collection = "task_execution")
+public class TaskExecutionEntity {
     @Id
     private String id;
-    private String parentId;
+    private String entityId;
     private String taskId;
     private String version;
     private int order;
@@ -25,19 +22,12 @@ public class TaskExecutionLogEntity {
     private String channel;
     private String productType;
     private String applicationId;
-    private String entityIdentifier;
-    private String entityType;
     private String actorType;
     private String actorId;
     private String status;
+    private String statusReason;
     private String executionType;
     private Map<String, Object> metadata;
-    private Map<String, Object> sendbackMetadata;
-    private Map<String, Object> inputResourceValueMap;
-    private Date createdAt;
-    private Date updatedAt;
-    private String handledBy;
-    private String requestId;
-
-
+    private Instant createdAt;
+    private Instant updatedAt;
 }
