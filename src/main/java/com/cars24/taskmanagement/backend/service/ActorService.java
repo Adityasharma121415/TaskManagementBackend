@@ -37,13 +37,17 @@ public interface ActorService {
 
     Map<String, Double> thresholdAverageTaskTime();
 
+    String getActorType(String actorId);
+
     public Map<String, Object> getActorMetrics(String actorId, int days);
 
     public Map<String, Double> getAverageTaskTime(String actorId);
 
     public Date getPastDate(int days);
 
-    public void getAllApplications(int days);
+//    public void getAllApplications(int days);
+
+    void getAllApplications(String actorType, int days);
 
     public double getTaskEffiencyScore(String actorId);
 
