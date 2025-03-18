@@ -29,10 +29,10 @@ public class ActorServiceImpl implements ActorService {
     }
 
     @Override
-    public void getAllApplications(int days){
+    public void getAllApplications(String actorType, int days){
         log.info("ActorServiceImpl [getAllApplications] {}", days);
         Date pastDate = getPastDate(days);
-        allDocuments = actorDao.findAllApplications(pastDate);
+        allDocuments = actorDao.findAllApplications(actorType, pastDate);
     }
 
     @Override
@@ -422,6 +422,15 @@ public class ActorServiceImpl implements ActorService {
     }
 
     @Override
+    public String getActorType(String actorId){
+        String actorType = "";
+        for(ActorEntity document : actorDocuments){
+            actorType = document.getActorType();
+        }
+        return actorType;
+    }
+
+    @Override
     public Map<String, Object> getActorMetrics(String actorId, int days) {
         log.info("ActorServiceImpl [getActorMetrics] {}", actorId);
 
@@ -429,7 +438,8 @@ public class ActorServiceImpl implements ActorService {
 
         getApplications(actorId, days);
 
-        getAllApplications(days);
+        String actorType = getActorType(actorId);
+        getAllApplications(actorType, days);
 
 //        Map<String, Long> averageDuration = getAverageDuration(actorId);
 //        Map<String, Integer> taskFrequency = taskFrequency(actorId);
@@ -501,6 +511,7 @@ public class ActorServiceImpl implements ActorService {
         response.put("most_and_least_retried_task", mostAndLeastRetriedTask);
         response.put("average_retries", taskRetries);
         response.put("average_retries_threshold", taskRetriesThreshold);
+        response.put("actor_type", actorType);
         return response;
     }
 }

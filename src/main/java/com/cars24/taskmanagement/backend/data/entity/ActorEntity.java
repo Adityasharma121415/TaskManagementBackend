@@ -13,6 +13,7 @@ public class ActorEntity {
     @Id
     private String id;
     private String actorId;
+    private String actorType;
     private String applicationId;
     private List<TaskEntity> tasks;
     private Long totalDuration;
