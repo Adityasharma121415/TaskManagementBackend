@@ -108,11 +108,14 @@ public class ApplicationServiceImpl implements ApplicationService {
         response.put("tasksGroupedByFunnel", tasksGroupedByFunnel);
 
         Map<String, List<TaskResponse>> sendbackGroupedByRequestId = sendbackTasks.stream()
+                .sorted(Comparator.comparing(TaskExecutionLogEntity::getUpdatedAt)) // Sorting before grouping
                 .collect(Collectors.groupingBy(
                         task -> Optional.ofNullable(task.getRequestId()).orElse("UNKNOWN_REQUEST"),
                         Collectors.mapping(log -> createTaskResponse(Collections.singletonList(log), taskMetadata, true), Collectors.toList())
                 ));
+
         response.put("sendbackTasks", sendbackGroupedByRequestId);
+
 
         TaskExecutionLogEntity latestLog = tasks.stream()
                 .max(Comparator.comparing(TaskExecutionLogEntity::getUpdatedAt))
