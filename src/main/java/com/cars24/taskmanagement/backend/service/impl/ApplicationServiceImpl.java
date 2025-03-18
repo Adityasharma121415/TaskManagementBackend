@@ -155,6 +155,10 @@ public class ApplicationServiceImpl implements ApplicationService {
         // Fetch targetTaskId only if it's a sendback task
         String targetTaskId = isSendback ? fetchTargetTaskId(firstLog) : null;
 
+        // Extract sourceModule and subModule for sendback tasks
+        String sourceLoanStage = isSendback ? fetchSourceModule(firstLog) : null;
+        String sourceSubModule = isSendback ? fetchSubModule(firstLog) : null;
+
         return new TaskResponse(
                 firstLog.getTaskId(),
                 firstLog.getOrder(),
@@ -162,15 +166,16 @@ public class ApplicationServiceImpl implements ApplicationService {
                 firstLog.getCreatedAt(),
                 statusLogs,
                 targetTaskId,
-                duration,
+                duration, // Duration will be 0 for sendback tasks
                 sendbacks,
-                visited
+                visited,
+                sourceLoanStage, // Add sourceModule
+                sourceSubModule // Add subModule
         );
     }
 
     private String fetchTargetTaskId(TaskExecutionLogEntity log) {
         Map<String, Object> sendbackMetadata = (Map<String, Object>) log.getSendbackMetadata();
-
 
         if (sendbackMetadata != null && sendbackMetadata.containsKey("key")) {
             String sendbackKey = (String) sendbackMetadata.get("key");
@@ -184,6 +189,16 @@ public class ApplicationServiceImpl implements ApplicationService {
                     .orElse(null); // Return null if no configuration is found
         }
         return null; // Return null if the key is not found in the metadata
+    }
+
+    private String fetchSourceModule(TaskExecutionLogEntity log) {
+        Map<String, Object> sendbackMetadata = (Map<String, Object>) log.getSendbackMetadata();
+        return sendbackMetadata != null ? (String) sendbackMetadata.get("sourceLoanStage") : null;
+    }
+
+    private String fetchSubModule(TaskExecutionLogEntity log) {
+        Map<String, Object> sendbackMetadata = (Map<String, Object>) log.getSendbackMetadata();
+        return sendbackMetadata != null ? (String) sendbackMetadata.get("sourceSubModule") : null;
     }
 
     private List<FunnelGroupResponse> groupTasksByFunnel(List<TaskDetailsResponse> sortedTasks) {
