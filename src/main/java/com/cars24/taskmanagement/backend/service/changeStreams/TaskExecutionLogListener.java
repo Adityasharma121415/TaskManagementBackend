@@ -75,17 +75,19 @@ public class TaskExecutionLogListener {
         String applicationId = fullDocument.getString("applicationId");
         String taskId = fullDocument.getString("taskId");
         String status = fullDocument.getString("status");
+        String actorType = fullDocument.getString("actorType");
         Instant updatedAt = fullDocument.getDate("updatedAt").toInstant();
+
 
         int initialTask = 0;
         if (change.getOperationType() == OperationType.INSERT) {
-            initialTask = initializeActorMetrics(actorId, applicationId, taskId, status, updatedAt);
+            initialTask = initializeActorMetrics(actorId, applicationId, taskId, status, updatedAt, actorType);
         }
 
         if ("NEW".equals(status) || "TODO".equals(status)) {
             redisCacheService.storeTaskStartTime(applicationId, taskId, actorId, updatedAt);
             if(initialTask == 0){
-                updateActorMetrics(actorId, applicationId, taskId, status, 0L, updatedAt);
+                updateActorMetrics(actorId, applicationId, taskId, status, 0L, updatedAt, actorType);
             }
         }
         else if ("COMPLETED".equals(status) || "FAILED".equals(status) || "SENDBACK".equals(status)) {
@@ -93,13 +95,13 @@ public class TaskExecutionLogListener {
             if (startUpdatedAt != null) {
                 long duration = updatedAt.toEpochMilli() - startUpdatedAt.toEpochMilli();
                 log.info("TaskExecutionLogListener [processChange] Duration: {}", duration);
-                updateActorMetrics(actorId, applicationId, taskId, status, duration, updatedAt);
+                updateActorMetrics(actorId, applicationId, taskId, status, duration, updatedAt, actorType);
                 redisCacheService.removeTaskStartTime(applicationId, taskId, actorId);
             }
         }
     }
 
-    private int initializeActorMetrics(String actorId, String applicationId, String taskId, String status, Instant updatedAt) {
+    private int initializeActorMetrics(String actorId, String applicationId, String taskId, String status, Instant updatedAt, String actorType) {
 
         log.info("TaskExecutionLogListener [initializeActorMetrics] {}, {}, {}, {}, {}", actorId, applicationId, taskId, status, updatedAt);
 
@@ -111,6 +113,7 @@ public class TaskExecutionLogListener {
             Document newEntry = new Document()
                     .append("applicationId", applicationId)
                     .append("actorId", actorId)
+                    .append("actorType", actorType)
                     .append("tasks", List.of(new Document()
                             .append("taskId", taskId)
                             .append("status", status)
@@ -138,7 +141,7 @@ public class TaskExecutionLogListener {
         return initialTask;
     }
 
-    private void updateActorMetrics(String actorId, String applicationId, String taskId, String status, long duration, Instant updatedAt) {
+    private void updateActorMetrics(String actorId, String applicationId, String taskId, String status, long duration, Instant updatedAt, String actorType) {
         log.info("TaskExecutionLogListener [updateActorMetrics] {} {} {} {} {} {}", actorId, applicationId, taskId, status, duration, updatedAt);
 
         Query query = new Query(Criteria.where("applicationId").is(applicationId).and("actorId").is(actorId));
