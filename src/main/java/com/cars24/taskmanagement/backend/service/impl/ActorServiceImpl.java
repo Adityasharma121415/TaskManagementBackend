@@ -29,10 +29,10 @@ public class ActorServiceImpl implements ActorService {
     }
 
     @Override
-    public void getAllApplications(int days){
+    public void getAllApplications(String actorType, int days){
         log.info("ActorServiceImpl [getAllApplications] {}", days);
         Date pastDate = getPastDate(days);
-        allDocuments = actorDao.findAllApplications(pastDate);
+        allDocuments = actorDao.findAllApplications(actorType, pastDate);
     }
 
     @Override
@@ -278,7 +278,7 @@ public class ActorServiceImpl implements ActorService {
             Integer retries = entry.getValue();
             Integer freq = frequencyOfTasksAcrossApplications.get(taskId);
 
-            Double average = (double) (retries / freq);
+            Double average = ((retries*1.0) / (freq*1.0));
             response.put(taskId, average);
         }
 
@@ -369,6 +369,7 @@ public class ActorServiceImpl implements ActorService {
                 if(status.equals("NEW") || status.equals("IN_PROGRESS") || status.equals("TODO")){
                     taskDetails.put("task_name", task.getTaskId());
                     taskDetails.put("application_id", applicationId);
+                    taskDetails.put("status", status);
                 }
                 if(!taskDetails.isEmpty()) {
                     tasksAssigned.add(taskDetails);
@@ -421,6 +422,15 @@ public class ActorServiceImpl implements ActorService {
     }
 
     @Override
+    public String getActorType(String actorId){
+        String actorType = "";
+        for(ActorEntity document : actorDocuments){
+            actorType = document.getActorType();
+        }
+        return actorType;
+    }
+
+    @Override
     public Map<String, Object> getActorMetrics(String actorId, int days) {
         log.info("ActorServiceImpl [getActorMetrics] {}", actorId);
 
@@ -428,7 +438,8 @@ public class ActorServiceImpl implements ActorService {
 
         getApplications(actorId, days);
 
-        getAllApplications(days);
+        String actorType = getActorType(actorId);
+        getAllApplications(actorType, days);
 
 //        Map<String, Long> averageDuration = getAverageDuration(actorId);
 //        Map<String, Integer> taskFrequency = taskFrequency(actorId);
@@ -500,6 +511,7 @@ public class ActorServiceImpl implements ActorService {
         response.put("most_and_least_retried_task", mostAndLeastRetriedTask);
         response.put("average_retries", taskRetries);
         response.put("average_retries_threshold", taskRetriesThreshold);
+        response.put("actor_type", actorType);
         return response;
     }
 }

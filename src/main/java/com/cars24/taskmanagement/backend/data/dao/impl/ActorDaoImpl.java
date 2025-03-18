@@ -24,8 +24,8 @@ public class ActorDaoImpl implements ActorDao {
     }
 
     @Override
-    public List<ActorEntity> findAllApplications(Date pastDate) {
-        log.info("ActorDaoImpl [findAllApplications] {}", pastDate);
-        return actorRepository.findAllByLastUpdatedAtAfter(pastDate);
+    public List<ActorEntity> findAllApplications(String actorType, Date pastDate) {
+        log.info("ActorDaoImpl [findAllApplications] {} {}", actorType, pastDate);
+        return actorRepository.findAllByLastUpdatedAtAfter(actorType, pastDate);
     }
 }
