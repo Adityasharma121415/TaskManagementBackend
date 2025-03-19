@@ -24,11 +24,11 @@ public class ActorController {
         log.info("ActorController [getActorPerformance] {} {}", actorId, days);
 
         if(actorId == null || !actorId.matches("\\d+")){
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid actorId: must be positive and numeric"));
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid actorId: must be numeric and greater than 0"));
         }
 
         if(days < 7 || days > 90){
-            return ResponseEntity.ok().body(Map.of("error", "Invalid days: must be between 7 and 90"));
+            return ResponseEntity.ok().body(Map.of("error", "Invalid number of days: must be between 7 and 90"));
         }
 
         return ResponseEntity.ok().body(actorService.getActorMetrics(actorId, days));
