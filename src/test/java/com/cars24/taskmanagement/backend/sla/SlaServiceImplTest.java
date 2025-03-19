@@ -46,7 +46,7 @@ public class SlaServiceImplTest {
         SubTaskEntity fulfillmentTask = new SubTaskEntity("fulfillment_task1", baseTime);
         fulfillmentTask.updateStatus("COMPLETED", baseTime.plusMillis(4000));
 
-        // Set each funnel in the entity. Adjust setter names if your entity differs.
+
         entity.setSourcing(Collections.singletonList(sourcingTask));
         entity.setCredit(Collections.singletonList(creditTask));
         entity.setConversion(Collections.singletonList(conversionTask));
