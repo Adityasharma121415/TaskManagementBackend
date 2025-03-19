@@ -30,7 +30,7 @@ public class ActorServiceImpl implements ActorService {
 
     @Override
     public void getAllApplications(String actorType, int days){
-        log.info("ActorServiceImpl [getAllApplications] {}", days);
+        log.info("ActorServiceImpl [getAllApplications] {} {}",actorType, days);
         Date pastDate = getPastDate(days);
         allDocuments = actorDao.findAllApplications(actorType, pastDate);
     }
@@ -57,7 +57,10 @@ public class ActorServiceImpl implements ActorService {
             totalNoOfTasks += 1;
         }
 
-        Double score = (efficientTasks * 1.0 / totalNoOfTasks) * 100;
+        Double score = 0.0;
+        if(totalNoOfTasks > 0){
+            score = (efficientTasks * 1.0 / totalNoOfTasks) * 100;
+        }
         return score;
     }
 
@@ -411,9 +414,6 @@ public class ActorServiceImpl implements ActorService {
         if(taskTimeAcrossApplications == null){
             log.warn("ActorServiceImpl [getActorMetrics] : taskTimeAcrossApplications is empty");
         }
-        if(totalTasksCompleted == 0){
-            log.warn("ActorServiceImpl [getActorMetrics] : totalTasksCompleted is empty");
-        }
         if(tasksAssigned == null){
             log.warn("ActorServiceImpl [getActorMetrics] : tasksAssigned is empty");
         }
@@ -422,9 +422,6 @@ public class ActorServiceImpl implements ActorService {
         }
         if(thresholdAverageTaskTime == null){
             log.warn("ActorServiceImpl [getActorMetrics] : thresholdAverageTaskTime is empty");
-        }
-        if(taskEfficiencyScore == null){
-            log.warn("ActorServiceImpl [getActorMetrics] : taskEfficiencyScore is empty for actorId {}", actorId);
         }
         if(fastestAndSlowestTask == null || fastestAndSlowestTask.isEmpty()){
             log.warn("ActorServiceImpl [getActorMetrics] : fastestAndSlowestTask is empty for actorId {}", actorId);
