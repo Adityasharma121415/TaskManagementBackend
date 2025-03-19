@@ -21,4 +21,5 @@ public class ActorEntity {
     private List<TaskEntity> tasks;
     private Long totalDuration;
     private Instant lastUpdatedAt;
+    private String handledBy;
 }

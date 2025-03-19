@@ -11,4 +11,5 @@ public class FileConstants {
     public static final int TOTAL_CONNECTIONS = 10;
     public static final String RESUME_TOKEN_COLLECTION = "resume_tokens";
     public static final String RESUME_TOKEN_KEY = "change_stream_resume_token";
+    public static final int TTL = 1080;
 }

@@ -49,7 +49,7 @@ public interface ActorService {
 
     void getAllApplications(String actorType, int days);
 
-    public double getTaskEffiencyScore(String actorId);
+    public double getTaskEffiencyScore(String actorId) throws Exception;
 
 //    public double getAgentErrorRate(String actorId);
 
