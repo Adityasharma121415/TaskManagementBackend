@@ -26,7 +26,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     private static final String UNKNOWN_FUNNEL = "Unknown Funnel";
     private final ApplicationDao taskExecutionDao;
     private final SendbackConfigDao sendbackConfigDao;
-
+//for graph view
     @Override
     public ListFunnelGroupResponse getTasksByApplicationId(String applicationId) {
         List<TaskExecutionLogEntity> sortedTasks = taskExecutionDao.findTasksByApplicationIdSortedByUpdatedAt(applicationId);
@@ -37,6 +37,8 @@ public class ApplicationServiceImpl implements ApplicationService {
         return new ListFunnelGroupResponse(funnelGroupResponses);
     }
 
+
+    //for list view
     @Override
     public Map<String, Object> getTasksGroupedByFunnel(String applicationId) {
         Map<String, Object> data = taskExecutionDao.findTasksAndLoanDurationByApplicationId(applicationId);
@@ -212,7 +214,6 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
         return new ArrayList<>(funnelMap.values());
     }
-
     private TaskDetailsResponse convertToTaskDetails(TaskExecutionLogEntity log) {
         String targetTaskId = "sendback".equalsIgnoreCase(log.getTaskId()) ? fetchTargetTaskId(log) : null;
 
@@ -228,4 +229,5 @@ public class ApplicationServiceImpl implements ApplicationService {
                 log.getMetadata()
         );
     }
+
 }
