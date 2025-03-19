@@ -30,7 +30,7 @@ public class ActorControllerTest {
 
     @BeforeEach
     void setUp() {
-        actorId = "actor123";
+        actorId = "actor";
         days = 7;
         mockMetrics = new HashMap<>();
         mockMetrics.put("tasksCompleted", 10);
