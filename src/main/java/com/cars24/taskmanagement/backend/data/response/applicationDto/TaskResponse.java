@@ -20,6 +20,8 @@ public class TaskResponse {
     private long duration;
     private int sendbacks;
     private int visited;
+    private String sourceLoanStage;
+    private String sourceSubModule;
 
 
 
