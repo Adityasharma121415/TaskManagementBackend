@@ -22,6 +22,15 @@ public class ActorController {
     @GetMapping(path = "{actorId}/{days}")
     public ResponseEntity getActorPerformance(@PathVariable String actorId, @PathVariable int days){
         log.info("ActorController [getActorPerformance] {} {}", actorId, days);
+
+        if(actorId == null || !actorId.matches("\\d+")){
+            return ResponseEntity.badRequest().body(Map.of("Error", "Invalid actorId: must be numeric and greater than 0"));
+        }
+
+        if(days < 7 || days > 90){
+            return ResponseEntity.badRequest().body(Map.of("Error", "Invalid number of days: must be between 7 and 90"));
+        }
+
         return ResponseEntity.ok().body(actorService.getActorMetrics(actorId, days));
     }
 }

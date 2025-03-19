@@ -1,5 +1,6 @@
 package com.cars24.taskmanagement.backend.service.redisCache;
 
+import com.cars24.taskmanagement.backend.constants.FileConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -19,7 +20,7 @@ public class RedisCacheService {
     public void storeTaskStartTime(String applicationId, String taskId, String actorId, Instant updatedAt) {
         log.info("RedisCacheService [storeTaskStartTime] {} {} {} {}", applicationId, taskId, actorId, updatedAt);
         String key = applicationId + ":" + taskId + ":" + actorId;
-        redisTemplate.opsForValue().set(key, updatedAt.toString(), 24, TimeUnit.HOURS);
+        redisTemplate.opsForValue().set(key, updatedAt.toString(), FileConstants.TTL, TimeUnit.HOURS);
     }
 
     public Instant getTaskStartTime(String applicationId, String taskId, String actorId) {
