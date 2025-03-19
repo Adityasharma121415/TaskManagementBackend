@@ -51,7 +51,7 @@ public interface ActorService {
 
     public double getTaskEffiencyScore(String actorId);
 
-    public double getAgentErrorRate(String actorId);
+//    public double getAgentErrorRate(String actorId);
 
     public Map<String, Object> getFastestAndSlowestTask(String actorId);
 

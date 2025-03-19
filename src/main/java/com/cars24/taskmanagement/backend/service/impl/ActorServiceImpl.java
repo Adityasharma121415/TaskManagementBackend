@@ -39,45 +39,26 @@ public class ActorServiceImpl implements ActorService {
     public double getTaskEffiencyScore(String actorId) {
         log.info("ActorServiceImpl [getTaskEfficiencyScore] {}", actorId);
 
-        double totalTimeSpent = 0;
-        int totalTasksCompleted = getTasksCompleted(actorId);
+        Map<String, Double> averageTaskTimeForAllAgents = thresholdAverageTaskTime();
+        Map<String, Double> averageTaskTimeForAgent = getAverageTaskTime(actorId);
 
-        for(ActorEntity document : actorDocuments){
-            for(TaskEntity task : document.getTasks()){
-                totalTimeSpent += task.getDuration();
+        int efficientTasks = 0;
+        int totalNoOfTasks = 0;
+
+        for(Map.Entry<String, Double> entry : averageTaskTimeForAgent.entrySet()){
+            String taskId = entry.getKey();
+            Double agentTaskTime = entry.getValue();
+
+            Double averageTaskTime = averageTaskTimeForAllAgents.get(taskId);
+
+            if(agentTaskTime < averageTaskTime){
+                efficientTasks += 1;
             }
+            totalNoOfTasks += 1;
         }
 
-        if(totalTasksCompleted == 0){
-            return 0;
-        }
-
-        return (totalTimeSpent/totalTasksCompleted)*100;
-    }
-
-    @Override
-    public double getAgentErrorRate(String actorId) {
-        log.info("ActorServiceImpl [getAgentErrorRate] {}", actorId);
-
-        int totalTasksHandled = 0;
-        int totalRetriedTasks = 0;
-
-        for(ActorEntity document : actorDocuments){
-            if(!document.getActorId().equals(actorId)) continue;
-
-            for(TaskEntity task : document.getTasks()){
-                totalTasksHandled++;
-                if(task.getVisited() > 1){
-                    totalRetriedTasks++;
-                }
-            }
-        }
-
-        if(totalTasksHandled == 0){
-            return 0;
-        }
-
-        return (totalRetriedTasks / (double)totalTasksHandled)*100;
+        Double score = (efficientTasks * 1.0 / totalNoOfTasks) * 100;
+        return score;
     }
 
     @Override
@@ -132,10 +113,12 @@ public class ActorServiceImpl implements ActorService {
 
         Map<String, Object> result = new HashMap<>();
         if(mostRetriedTask != null){
-            result.put("most_retried_task", Map.of("task_id", mostRetriedTask.getTaskId(), "visited", mostRetriedTask.getVisited()));
+            int mostVisited = mostRetriedTask.getVisited() > 0 ? mostRetriedTask.getVisited() - 1: 0;
+            result.put("most_retried_task", Map.of("task_id", mostRetriedTask.getTaskId(), "visited", mostVisited));
         }
         if(leastRetriedTask != null){
-            result.put("least_retried_task", Map.of("task_id", leastRetriedTask.getTaskId(), "visited", leastRetriedTask.getVisited()));
+            int leastVisited = leastRetriedTask.getVisited() > 0 ? leastRetriedTask.getVisited() - 1 : 0;
+            result.put("least_retried_task", Map.of("task_id", leastRetriedTask.getTaskId(), "visited", leastVisited));
         }
         return result;
     }
@@ -146,35 +129,6 @@ public class ActorServiceImpl implements ActorService {
         calendar.add(Calendar.DAY_OF_MONTH, -days);
         return calendar.getTime();
     }
-
-//    @Override
-//    public Map<String, Long> getAverageDuration(String actorId){
-//        log.info("ActorServiceImpl [getTotalDuration] {}", actorId);
-//
-//        Map<String, Long> response = new HashMap<>();
-//        List<ActorEntity> documents = getApplications(actorId);
-//
-//        for(ActorEntity document : actorDocuments){
-//            String applicationId = document.getApplicationId();
-//            Long applicationDuration = document.getTotalDuration();
-//
-//            int visited = 0;
-//
-//            for(TaskEntity task : document.getTasks()){
-//                visited += (task.getVisited());
-//            }
-//
-//            Long averageDuration = 0L;
-//            if(visited > 0){
-//                averageDuration = applicationDuration/visited;
-//            }
-//            else{
-//                throw new DataProcessingException("Visited count cannot be zero for applicationId: " + applicationId);
-//            }
-//            response.put(applicationId, averageDuration);
-//        }
-//        return response;
-//    }
 
     @Override
     public Map<String, Integer> taskFrequency(String actorId) {
@@ -441,8 +395,6 @@ public class ActorServiceImpl implements ActorService {
         String actorType = getActorType(actorId);
         getAllApplications(actorType, days);
 
-//        Map<String, Long> averageDuration = getAverageDuration(actorId);
-//        Map<String, Integer> taskFrequency = taskFrequency(actorId);
         Map<String, Double> taskTimeAcrossApplications = getTaskTimeAcrossApplications(actorId);
         Map<String, Double> averageTaskTime = getAverageTaskTime(actorId);
         int totalTasksCompleted = getTasksCompleted(actorId);
@@ -451,18 +403,11 @@ public class ActorServiceImpl implements ActorService {
         Map<String, Double> thresholdTaskTime = thresholdTaskTimeAcrossApplications();
         Map<String, Double> thresholdAverageTaskTime = thresholdAverageTaskTime();
         Double taskEfficiencyScore = getTaskEffiencyScore(actorId);
-        Double agentErrorRate = getAgentErrorRate(actorId);
         Map<String, Object> fastestAndSlowestTask = getFastestAndSlowestTask(actorId);
         Map<String, Object> mostAndLeastRetriedTask = getMostAndLeastRetriedTask(actorId);
         Map<String, Double> taskRetries = taskRetries(actorId);
         Map<String, Double> taskRetriesThreshold = taskRetriesThreshold();
 
-//        if(averageDuration == null){
-//            log.warn("ActorServiceImpl [getActorMetrics] : averageDuration is empty");
-//        }
-//        if(taskFrequency == null){
-//            log.warn("ActorServiceImpl [getActorMetrics] : taskFrequency is empty");
-//        }
         if(taskTimeAcrossApplications == null){
             log.warn("ActorServiceImpl [getActorMetrics] : taskTimeAcrossApplications is empty");
         }
@@ -481,9 +426,6 @@ public class ActorServiceImpl implements ActorService {
         if(taskEfficiencyScore == null){
             log.warn("ActorServiceImpl [getActorMetrics] : taskEfficiencyScore is empty for actorId {}", actorId);
         }
-        if(agentErrorRate == null){
-            log.warn("ActorServiceImpl [getActorMetrics] : agentErrorRate is empty for actorId {}", actorId);
-        }
         if(fastestAndSlowestTask == null || fastestAndSlowestTask.isEmpty()){
             log.warn("ActorServiceImpl [getActorMetrics] : fastestAndSlowestTask is empty for actorId {}", actorId);
         }
@@ -497,16 +439,11 @@ public class ActorServiceImpl implements ActorService {
             log.warn("ActorServiceImpl [getActorMetrics] :taskRetriesThreshold is empty");
         }
 
-
-//        response.put("average_duration", averageDuration);
-//        response.put("task_frequency", taskFrequency);
-//        response.put("task_time_across_applications", taskTimeAcrossApplications);
         response.put("average_task_time_across_applications", averageTaskTime);
         response.put("total_tasks_completed", totalTasksCompleted);
         response.put("tasks_assigned", tasksAssigned);
         response.put("threshold_average_task_time", thresholdAverageTaskTime);
         response.put("task_efficiency_score", taskEfficiencyScore);
-        response.put("agent_error_rate", agentErrorRate);
         response.put("fastest_and_slowest_task", fastestAndSlowestTask);
         response.put("most_and_least_retried_task", mostAndLeastRetriedTask);
         response.put("average_retries", taskRetries);
