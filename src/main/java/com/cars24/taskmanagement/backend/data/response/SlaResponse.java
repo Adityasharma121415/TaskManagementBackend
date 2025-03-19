@@ -24,7 +24,7 @@ public class SlaResponse {
         private long noOfSendbacks;
     }
 
-    // Updated formatDuration: displays the duration as days, hours, minutes, and seconds.
+
     public static String formatDuration(long millis) {
         long seconds = millis / 1000;
         long days = seconds / (24 * 3600);

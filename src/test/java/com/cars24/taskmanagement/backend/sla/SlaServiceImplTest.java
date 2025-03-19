@@ -33,7 +33,7 @@ public class SlaServiceImplTest {
         TaskExecutionTimeEntity entity = new TaskExecutionTimeEntity();
         Instant baseTime = Instant.now();
 
-        // Create tasks for each funnel with desired durations.
+
         SubTaskEntity sourcingTask = new SubTaskEntity("sourcing_task1", baseTime);
         sourcingTask.updateStatus("COMPLETED", baseTime.plusMillis(1000));
 
@@ -46,7 +46,7 @@ public class SlaServiceImplTest {
         SubTaskEntity fulfillmentTask = new SubTaskEntity("fulfillment_task1", baseTime);
         fulfillmentTask.updateStatus("COMPLETED", baseTime.plusMillis(4000));
 
-        // Set each funnel in the entity. Adjust setter names if your entity differs.
+
         entity.setSourcing(Collections.singletonList(sourcingTask));
         entity.setCredit(Collections.singletonList(creditTask));
         entity.setConversion(Collections.singletonList(conversionTask));

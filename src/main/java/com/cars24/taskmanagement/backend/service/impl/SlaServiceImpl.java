@@ -8,8 +8,14 @@ import com.cars24.taskmanagement.backend.data.response.SlaResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
+import com.cars24.taskmanagement.backend.utils.TimeUtils;
 
 @Slf4j
 @Service
@@ -50,6 +56,7 @@ public class SlaServiceImpl implements com.cars24.taskmanagement.backend.service
             Map<String, List<SubTaskEntity>> funnels = getFunnels(execution);
             funnels.forEach((funnelName, tasks) -> processTasks(tasks, funnelName, taskDurations, taskSendbacks, funnelToTaskMapping));
         }
+        log.info("Received request for SLA service of process execution: {}", executions);
     }
 
     private Map<String, List<SubTaskEntity>> getFunnels(TaskExecutionTimeEntity execution) {
@@ -97,24 +104,24 @@ public class SlaServiceImpl implements com.cars24.taskmanagement.backend.service
 
     private long calculateTotalTAT(Map<String, String> avgFunnelTimes) {
         return (long) avgFunnelTimes.values().stream()
-                .mapToDouble(this::convertFormattedTimeToMillis)
+                .mapToDouble(TimeUtils::convertFormattedTimeToMillis)
                 .sum();
     }
 
-    private long convertFormattedTimeToMillis(String time) {
-        String[] parts = time.split(" ");
-        long totalMillis = 0;
-        for (int i = 0; i < parts.length; i += 2) {
-            long num = Long.parseLong(parts[i]);
-            switch (parts[i + 1]) {
-                case "days" -> totalMillis += num * 24 * 3600 * 1000;
-                case "hrs" -> totalMillis += num * 3600 * 1000;
-                case "min" -> totalMillis += num * 60 * 1000;
-                case "sec" -> totalMillis += num * 1000;
-            }
-        }
-        return totalMillis;
-    }
+//    private long convertFormattedTimeToMillis(String time) {
+//        String[] parts = time.split(" ");
+//        long totalMillis = 0;
+//        for (int i = 0; i < parts.length; i += 2) {
+//            long num = Long.parseLong(parts[i]);
+//            switch (parts[i + 1]) {
+//                case "days" -> totalMillis += num * 24 * 3600 * 1000;
+//                case "hrs" -> totalMillis += num * 3600 * 1000;
+//                case "min" -> totalMillis += num * 60 * 1000;
+//                case "sec" -> totalMillis += num * 1000;
+//            }
+//        }
+//        return totalMillis;
+//    }
 
     private Map<String, Long> calculateSendbackCounts(Map<String, List<Long>> taskSendbacks) {
         return taskSendbacks.entrySet().stream()
