@@ -403,7 +403,22 @@ public class ActorServiceImpl implements ActorService {
 
         Map<String, Object> response = new HashMap<>();
 
+        if (actorId == null || !actorId.matches("\\d+") || Integer.parseInt(actorId) <= 0) {
+            response.put("Error","Actor ID should be a number greater than 0.");
+            return response;
+        }
+
+        if(days < 7 || days > 90){
+            response.put("Error", "Days must be greater than 7 and less than 90.");
+            return response;
+        }
+
         getApplications(actorId, days);
+
+        if(actorDocuments.isEmpty()){
+            response.put("Error","Actor does not exist. Enter a valid Actor ID.");
+            return response;
+        }
 
         String actorType = getActorType(actorId);
         getAllApplications(actorType, days);
