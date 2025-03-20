@@ -15,6 +15,8 @@ public interface ActorService {
 
 //    public Map<String, Long> getAverageDuration(String actorId, int days);
 
+    String getActorEmail();
+
     public Map<String, Integer> taskFrequency(String actorId);
 
     Map<String, Integer> retryFrequency(String actorId);

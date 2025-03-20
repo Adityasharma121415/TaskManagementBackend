@@ -37,7 +37,7 @@ public class TaskExecutionServiceImplTest {
     public void testFindAll() {
         List<TaskExecutionEntity> dummyList = new ArrayList<>();
         TaskExecutionEntity entity = new TaskExecutionEntity();
-        // Set minimal properties on entity if needed.
+
         dummyList.add(entity);
         when(taskExecutionRepository.findAll()).thenReturn(dummyList);
 

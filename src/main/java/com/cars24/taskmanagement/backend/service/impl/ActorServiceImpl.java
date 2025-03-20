@@ -134,6 +134,16 @@ public class ActorServiceImpl implements ActorService {
     }
 
     @Override
+    public String getActorEmail(){
+        String email = "";
+        for(ActorEntity document : actorDocuments){
+            email = document.getHandledBy();
+            break;
+        }
+        return email;
+    }
+
+    @Override
     public Map<String, Integer> taskFrequency(String actorId) {
         log.info("ActorServiceImpl [taskFrequency] {}", actorId);
 
@@ -410,6 +420,7 @@ public class ActorServiceImpl implements ActorService {
         Map<String, Object> mostAndLeastRetriedTask = getMostAndLeastRetriedTask(actorId);
         Map<String, Double> taskRetries = taskRetries(actorId);
         Map<String, Double> taskRetriesThreshold = taskRetriesThreshold();
+        String handledBy = getActorEmail();
 
         if(taskTimeAcrossApplications == null){
             log.warn("ActorServiceImpl [getActorMetrics] : taskTimeAcrossApplications is empty");
@@ -446,6 +457,7 @@ public class ActorServiceImpl implements ActorService {
         response.put("average_retries", taskRetries);
         response.put("average_retries_threshold", taskRetriesThreshold);
         response.put("actor_type", actorType);
+        response.put("handled_by", handledBy);
         return response;
     }
 }
