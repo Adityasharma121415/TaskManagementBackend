@@ -3,13 +3,14 @@ package com.cars24.taskmanagement.backend.controller;
 import com.cars24.taskmanagement.backend.data.response.ApiResponse;
 import com.cars24.taskmanagement.backend.data.response.applicationDto.ListFunnelGroupResponse;
 import com.cars24.taskmanagement.backend.service.impl.ApplicationServiceImpl;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-
+@Slf4j
 @RestController
 @RequestMapping("/applicationLog")
 @CrossOrigin(origins = "http://localhost:5173")
@@ -21,6 +22,7 @@ public class ApplicationController {
 
     @GetMapping("/{applicationId}")
     public ResponseEntity<ApiResponse> getTasksByApplicationId(@PathVariable String applicationId) {
+        log.info("Fetching tasks for applicationId: {}", applicationId);
         Map<String, Object> tasksByApplicationId= applicationService.getTasksGroupedByFunnel(applicationId);
         ApiResponse response = new ApiResponse();
         response.setStatusCode(HttpStatus.OK.value());
@@ -33,6 +35,7 @@ public class ApplicationController {
 
     @GetMapping("/graph/{applicationId}")
     public ResponseEntity<ApiResponse> getTasksByApplicationIdDC(@PathVariable String applicationId) {
+        log.info("Fetching graph tasks for applicationId: {}", applicationId);
         ListFunnelGroupResponse listFunnelGroupResponse = applicationService.getTasksByApplicationId(applicationId);
         ApiResponse response = new ApiResponse();
         response.setStatusCode(HttpStatus.OK.value());
