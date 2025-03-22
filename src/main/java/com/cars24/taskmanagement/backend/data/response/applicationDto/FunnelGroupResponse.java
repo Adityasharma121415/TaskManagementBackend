@@ -9,7 +9,7 @@ import java.util.List;
 public class FunnelGroupResponse {
     private String funnelName;
     private List<TaskDetailsResponse> tasks;
-    private long funnelDuration; // Add this field
+    private long funnelDuration;
 
     public FunnelGroupResponse(String funnelName, List<TaskDetailsResponse> tasks) {
         this.funnelName = funnelName;
@@ -17,7 +17,7 @@ public class FunnelGroupResponse {
         this.funnelDuration = 0; // Default value
     }
 
-    // Add constructor with duration
+    //  constructor with duration
     public FunnelGroupResponse(String funnelName, List<TaskDetailsResponse> tasks, long funnelDuration) {
         this.funnelName = funnelName;
         this.tasks = tasks;
