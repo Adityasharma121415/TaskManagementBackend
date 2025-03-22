@@ -36,4 +36,22 @@ public class RedisCacheService {
         redisTemplate.delete(key);
     }
 
+    public void storeSystemTaskStartTime(String funnel, String applicationId, String taskId, Instant updatedAt){
+        log.info("RedisCacheService [storeSystemTaskStartTime] {} {} {} {}", funnel, applicationId, taskId, updatedAt);
+        String key = funnel + ":" + applicationId + ":" + taskId;
+        redisTemplate.opsForValue().set(key, updatedAt.toString(), FileConstants.TTL, TimeUnit.HOURS);
+    }
+
+    public Instant getSystemTaskStartTime(String funnel, String applicationId, String taskId){
+        log.info("RedisCacheService [getSystemTaskStartTime] {} {} {}", funnel, applicationId, taskId);
+        String key = funnel + ":" + applicationId + ":" + taskId;
+        String storedTime = redisTemplate.opsForValue().get(key);
+        return (storedTime != null) ? Instant.parse(storedTime) : null;
+    }
+
+    public void removeSystemTaskStartTime(String funnel, String applicationId, String taskId) {
+        log.info("RedisCacheService [removeSystemTaskStartTime] {} {} {}", funnel, applicationId, taskId);
+        String key = funnel + ":" + applicationId + ":" + taskId;
+        redisTemplate.delete(key);
+    }
 }

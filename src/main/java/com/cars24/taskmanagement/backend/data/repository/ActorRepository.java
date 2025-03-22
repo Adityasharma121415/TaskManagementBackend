@@ -9,12 +9,13 @@ import java.util.*;
 @Repository
 public interface ActorRepository extends MongoRepository<ActorEntity, String> {
 
-//    List<ActorEntity> findAllByActorId(String actorId, int days);
-
     @Query("{'actorId': ?0, 'lastUpdatedAt': { $gte: ?1 }}")
     List<ActorEntity> findAllByActorIdAndLastUpdatedAtAfter(String actorId, Date lastUpdatedAt);
 
     @Query("{ 'actorType': ?0, 'lastUpdatedAt': { $gte: ?1 } }")
     List<ActorEntity> findAllByLastUpdatedAtAfter(String actorType, Date lastUpdatedAt);
+
+    @Query("{'funnel': ?0, 'lastUpdatedAt': { $gte: ?1 }}")
+    List<ActorEntity> findAllByFunnelAndLastUpdatedAtAfter(String funnel, Date lastUpdatedAt);
 
 }
