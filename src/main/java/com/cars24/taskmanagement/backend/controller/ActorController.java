@@ -25,4 +25,10 @@ public class ActorController {
 
         return ResponseEntity.ok().body(actorService.getActorMetrics(actorId, days));
     }
+
+    @GetMapping(path = "system/{funnel}/{days}")
+    public ResponseEntity getSystemPerformance(@PathVariable String funnel, @PathVariable int days){
+        log.info("ActorController [getSystemPerformance] {} {}", funnel, days);
+        return ResponseEntity.ok().body(actorService.getSystemMetrics(funnel, days));
+    }
 }

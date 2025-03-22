@@ -21,6 +21,8 @@ public class ActorServiceImpl implements ActorService {
 
     private List<ActorEntity> allDocuments = new ArrayList<>();
 
+    private List<ActorEntity> systemDocuments = new ArrayList<>();
+
     @Override
     public void getApplications(String actorId, int days) {
         log.info("ActorServiceImpl [getApplications] {} {}", actorId, days);
@@ -65,24 +67,41 @@ public class ActorServiceImpl implements ActorService {
     }
 
     @Override
-    public Map<String, Object> getFastestAndSlowestTask(String actorId) {
-        log.info("ActorServiceImpl [getFastestAndSlowestTask] {}", actorId);
+    public Map<String, Object> getFastestAndSlowestTask(String id) {
+        log.info("ActorServiceImpl [getFastestAndSlowestTask] {}", id);
 
         TaskEntity fastestTask = null;
         TaskEntity slowestTask = null;
 
-        for(ActorEntity document : actorDocuments){
-            if(!document.getActorId().equals(actorId)) continue;
+        if(id.matches("\\d+")){
+            for(ActorEntity document : actorDocuments){
+                if(!document.getActorId().equals(id)) continue;
 
-            for(TaskEntity task : document.getTasks()){
-                if(fastestTask == null || task.getDuration() < fastestTask.getDuration()){
-                    fastestTask = task;
-                }
-                if(slowestTask == null || task.getDuration() > slowestTask.getDuration()){
-                    slowestTask = task;
+                for(TaskEntity task : document.getTasks()){
+                    if(fastestTask == null || task.getDuration() < fastestTask.getDuration()){
+                        fastestTask = task;
+                    }
+                    if(slowestTask == null || task.getDuration() > slowestTask.getDuration()){
+                        slowestTask = task;
+                    }
                 }
             }
         }
+        else{
+            for(ActorEntity document : systemDocuments){
+                if(!document.getFunnel().equals(id)) continue;
+
+                for(TaskEntity task : document.getTasks()){
+                    if(fastestTask == null || task.getDuration() < fastestTask.getDuration()){
+                        fastestTask = task;
+                    }
+                    if(slowestTask == null || task.getDuration() > slowestTask.getDuration()){
+                        slowestTask = task;
+                    }
+                }
+            }
+        }
+
 
         Map<String, Object> result = new HashMap<>();
         if(fastestTask != null){
@@ -95,21 +114,37 @@ public class ActorServiceImpl implements ActorService {
     }
 
     @Override
-    public Map<String, Object> getMostAndLeastRetriedTask(String actorId) {
-        log.info("ActorServiceImpl [getMostAndLeastRetriedTsak] {}", actorId);
+    public Map<String, Object> getMostAndLeastRetriedTask(String id) {
+        log.info("ActorServiceImpl [getMostAndLeastRetriedTsak] {}", id);
 
         TaskEntity mostRetriedTask = null;
         TaskEntity leastRetriedTask = null;
 
-        for(ActorEntity document : actorDocuments){
-            if(!document.getActorId().equals(actorId)) continue;
+        if(id.matches("\\d+")){
+            for(ActorEntity document : actorDocuments){
+                if(!document.getActorId().equals(id)) continue;
 
-            for(TaskEntity task : document.getTasks()){
-                if(mostRetriedTask == null || task.getVisited() > mostRetriedTask.getVisited()){
-                    mostRetriedTask = task;
+                for(TaskEntity task : document.getTasks()){
+                    if(mostRetriedTask == null || task.getVisited() > mostRetriedTask.getVisited()){
+                        mostRetriedTask = task;
+                    }
+                    if(leastRetriedTask == null || task.getVisited() < leastRetriedTask.getVisited()){
+                        leastRetriedTask = task;
+                    }
                 }
-                if(leastRetriedTask == null || task.getVisited() < leastRetriedTask.getVisited()){
-                    leastRetriedTask = task;
+            }
+        }
+        else{
+            for(ActorEntity document : systemDocuments){
+                if(!document.getFunnel().equals(id)) continue;
+
+                for(TaskEntity task : document.getTasks()){
+                    if(mostRetriedTask == null || task.getVisited() > mostRetriedTask.getVisited()){
+                        mostRetriedTask = task;
+                    }
+                    if(leastRetriedTask == null || task.getVisited() < leastRetriedTask.getVisited()){
+                        leastRetriedTask = task;
+                    }
                 }
             }
         }
@@ -144,34 +179,60 @@ public class ActorServiceImpl implements ActorService {
     }
 
     @Override
-    public Map<String, Integer> taskFrequency(String actorId) {
-        log.info("ActorServiceImpl [taskFrequency] {}", actorId);
+    public Map<String, Integer> taskFrequency(String id) {
+        log.info("ActorServiceImpl [taskFrequency] {}", id);
 
         Map<String, Integer> response = new HashMap<>();
 
-        for(ActorEntity document : actorDocuments){
-            List<TaskEntity> tasks = document.getTasks();
-            for(TaskEntity task : tasks){
-                String taskId = task.getTaskId();
-                int visited = task.getVisited();
-                response.put(taskId, response.getOrDefault(taskId, 0) + visited);
+        if(id.matches("\\d+")){
+            for(ActorEntity document : actorDocuments){
+                List<TaskEntity> tasks = document.getTasks();
+                for(TaskEntity task : tasks){
+                    String taskId = task.getTaskId();
+                    int visited = task.getVisited();
+                    response.put(taskId, response.getOrDefault(taskId, 0) + visited);
+                }
             }
         }
+        else{
+            for(ActorEntity document : systemDocuments){
+                List<TaskEntity> tasks = document.getTasks();
+                for(TaskEntity task : tasks){
+                    String taskId = task.getTaskId();
+                    int visited = task.getVisited();
+                    response.put(taskId, response.getOrDefault(taskId, 0) + visited);
+                }
+            }
+        }
+
         return response;
     }
 
     @Override
-    public Map<String, Integer> retryFrequency(String actorId){
-        log.info("ActorServiceImpl [retryFrequency] {}", actorId);
+    public Map<String, Integer> retryFrequency(String id){
+        log.info("ActorServiceImpl [retryFrequency] {}", id);
         Map<String, Integer> response = new HashMap<>();
 
-        for(ActorEntity document : actorDocuments){
-            List<TaskEntity> tasks = document.getTasks();
-            for(TaskEntity task : tasks){
-                String taskId = task.getTaskId();
-                int visited = task.getVisited();
-                visited -= 1;
-                response.put(taskId, response.getOrDefault(taskId, 0) + visited);
+        if(id.matches("\\d+")){
+            for(ActorEntity document : actorDocuments){
+                List<TaskEntity> tasks = document.getTasks();
+                for(TaskEntity task : tasks){
+                    String taskId = task.getTaskId();
+                    int visited = task.getVisited();
+                    visited -= 1;
+                    response.put(taskId, response.getOrDefault(taskId, 0) + visited);
+                }
+            }
+        }
+        else{
+            for(ActorEntity document : systemDocuments){
+                List<TaskEntity> tasks = document.getTasks();
+                for(TaskEntity task : tasks){
+                    String taskId = task.getTaskId();
+                    int visited = task.getVisited();
+                    visited -= 1;
+                    response.put(taskId, response.getOrDefault(taskId, 0) + visited);
+                }
             }
         }
 
@@ -180,7 +241,7 @@ public class ActorServiceImpl implements ActorService {
 
     @Override
     public Map<String, Integer>retryFrequencyThreshold(){
-        log.info("ActorServiceImpl [retryFrequency] ");
+        log.info("ActorServiceImpl [retryFrequencyThreshold] ");
         Map<String, Integer> response = new HashMap<>();
 
         for(ActorEntity document : allDocuments){
@@ -197,18 +258,29 @@ public class ActorServiceImpl implements ActorService {
     }
 
     @Override
-    public Map<String, Double> taskRetries(String actorId){
-        log.info("ActorServiceImpl [taskRetries]");
+    public Map<String, Double> taskRetries(String id){
+        log.info("ActorServiceImpl [taskRetries] {}", id);
         Map<String, Double> response = new HashMap<>();
 
         Map<String, Integer> frequencyOfTasksAcrossApplications = new HashMap<>();
-        Map<String, Integer> retriesForTask = retryFrequency(actorId);
+        Map<String, Integer> retriesForTask = retryFrequency(id);
 
-        for(ActorEntity document : actorDocuments){
-            List<TaskEntity> tasks = document.getTasks();
-            for(TaskEntity task : tasks){
-                String taskId = task.getTaskId();
-                frequencyOfTasksAcrossApplications.put(taskId, frequencyOfTasksAcrossApplications.getOrDefault(taskId, 0) + 1);
+        if(id.matches("\\d+")){
+            for(ActorEntity document : actorDocuments){
+                List<TaskEntity> tasks = document.getTasks();
+                for(TaskEntity task : tasks){
+                    String taskId = task.getTaskId();
+                    frequencyOfTasksAcrossApplications.put(taskId, frequencyOfTasksAcrossApplications.getOrDefault(taskId, 0) + 1);
+                }
+            }
+        }
+        else{
+            for(ActorEntity document : systemDocuments){
+                List<TaskEntity> tasks = document.getTasks();
+                for(TaskEntity task : tasks){
+                    String taskId = task.getTaskId();
+                    frequencyOfTasksAcrossApplications.put(taskId, frequencyOfTasksAcrossApplications.getOrDefault(taskId, 0) + 1);
+                }
             }
         }
 
@@ -270,17 +342,27 @@ public class ActorServiceImpl implements ActorService {
     }
 
     @Override
-    public Map<String, Double> getTaskTimeAcrossApplications(String actorId) {
-        log.info("ActorServiceImpl [getTaskTimeAcrossApplications] {}", actorId);
+    public Map<String, Double> getTaskTimeAcrossApplications(String id) {
+        log.info("ActorServiceImpl [getTaskTimeAcrossApplications] {}", id);
 
         Map<String, Double> taskTimeMap = new HashMap<>();
 
-        for (ActorEntity document : actorDocuments){
-            for(TaskEntity task : document.getTasks()){
-                String taskId = task.getTaskId();
-                double duration = task.getDuration();
-
-                taskTimeMap.put(taskId, taskTimeMap.getOrDefault(taskId, 0.0) + duration);
+        if(id.matches("\\d+")){
+            for (ActorEntity document : actorDocuments){
+                for(TaskEntity task : document.getTasks()){
+                    String taskId = task.getTaskId();
+                    double duration = task.getDuration();
+                    taskTimeMap.put(taskId, taskTimeMap.getOrDefault(taskId, 0.0) + duration);
+                }
+            }
+        }
+        else{
+            for (ActorEntity document : systemDocuments){
+                for(TaskEntity task : document.getTasks()){
+                    String taskId = task.getTaskId();
+                    double duration = task.getDuration();
+                    taskTimeMap.put(taskId, taskTimeMap.getOrDefault(taskId, 0.0) + duration);
+                }
             }
         }
         return taskTimeMap;
@@ -304,45 +386,78 @@ public class ActorServiceImpl implements ActorService {
     }
 
     @Override
-    public int getTasksCompleted(String actorId) {
-        log.info("ActorServiceImpl [getTasksCompleted] {}", actorId);
+    public int getTasksCompleted(String id) {
+        log.info("ActorServiceImpl [getTasksCompleted] {}", id);
 
         int tasksCompleted = 0;
 
-        for(ActorEntity document : actorDocuments){
-            List<TaskEntity> tasks = document.getTasks();
-            for(TaskEntity task : tasks){
-                String status = task.getStatus();
-                if(status.equals("COMPLETED")){
-                    tasksCompleted += 1;
+        if(id.matches("\\d+")){
+            for(ActorEntity document : actorDocuments){
+                List<TaskEntity> tasks = document.getTasks();
+                for(TaskEntity task : tasks){
+                    String status = task.getStatus();
+                    if(status.equals("COMPLETED")){
+                        tasksCompleted += 1;
+                    }
                 }
             }
         }
+        else{
+            for(ActorEntity document : systemDocuments){
+                List<TaskEntity> tasks = document.getTasks();
+                for(TaskEntity task : tasks){
+                    String status = task.getStatus();
+                    if(status.equals("COMPLETED")){
+                        tasksCompleted += 1;
+                    }
+                }
+            }
+        }
+
         return tasksCompleted;
     }
 
     @Override
-    public List<Map<String, String>> getTasksAssigned(String actorId) {
-        log.info("ActorServiceImpl [getTasksAssigned] {}", actorId);
+    public List<Map<String, String>> getTasksAssigned(String id) {
+        log.info("ActorServiceImpl [getTasksAssigned] {}", id);
 
         List<Map<String, String>> tasksAssigned = new ArrayList<>();
 
-        for(ActorEntity document : actorDocuments){
-            String applicationId = document.getApplicationId();
-
-            for(TaskEntity task : document.getTasks()){
-                String status = task.getStatus();
-                Map<String, String> taskDetails = new HashMap<>();
-                if(status.equals("NEW") || status.equals("IN_PROGRESS") || status.equals("TODO")){
-                    taskDetails.put("task_name", task.getTaskId());
-                    taskDetails.put("application_id", applicationId);
-                    taskDetails.put("status", status);
-                }
-                if(!taskDetails.isEmpty()) {
-                    tasksAssigned.add(taskDetails);
+        if(id.matches("\\d+")){
+            for(ActorEntity document : actorDocuments){
+                String applicationId = document.getApplicationId();
+                for(TaskEntity task : document.getTasks()){
+                    String status = task.getStatus();
+                    Map<String, String> taskDetails = new HashMap<>();
+                    if(status.equals("NEW") || status.equals("IN_PROGRESS") || status.equals("TODO") || status.equals("FAILED")){
+                        taskDetails.put("task_name", task.getTaskId());
+                        taskDetails.put("application_id", applicationId);
+                        taskDetails.put("status", status);
+                    }
+                    if(!taskDetails.isEmpty()) {
+                        tasksAssigned.add(taskDetails);
+                    }
                 }
             }
         }
+        else{
+            for(ActorEntity document : systemDocuments){
+                String applicationId = document.getApplicationId();
+                for(TaskEntity task : document.getTasks()){
+                    String status = task.getStatus();
+                    Map<String, String> taskDetails = new HashMap<>();
+                    if(status.equals("NEW") || status.equals("IN_PROGRESS") || status.equals("TODO") || status.equals("FAILED")){
+                        taskDetails.put("task_name", task.getTaskId());
+                        taskDetails.put("application_id", applicationId);
+                        taskDetails.put("status", status);
+                    }
+                    if(!taskDetails.isEmpty()) {
+                        tasksAssigned.add(taskDetails);
+                    }
+                }
+            }
+        }
+
         return tasksAssigned;
     }
 
@@ -399,7 +514,7 @@ public class ActorServiceImpl implements ActorService {
 
     @Override
     public Map<String, Object> getActorMetrics(String actorId, int days) {
-        log.info("ActorServiceImpl [getActorMetrics] {}", actorId);
+        log.info("ActorServiceImpl [getActorMetrics] {} {}", actorId, days);
 
         Map<String, Object> response = new HashMap<>();
 
@@ -416,7 +531,7 @@ public class ActorServiceImpl implements ActorService {
         getApplications(actorId, days);
 
         if(actorDocuments.isEmpty()){
-            response.put("Error","Actor does not exist. Enter a valid Actor ID.");
+            response.put("Error","Actor data unavailable.");
             return response;
         }
 
@@ -473,6 +588,70 @@ public class ActorServiceImpl implements ActorService {
         response.put("average_retries_threshold", taskRetriesThreshold);
         response.put("actor_type", actorType);
         response.put("handled_by", handledBy);
+        return response;
+    }
+
+    @Override
+    public void getSystemApplications(String funnel, int days){
+        log.info("ActorServiceImpl [getSystemApplications] {} {}", funnel, days);
+        Date pastDate = getPastDate(days);
+        systemDocuments = actorDao.findAllByFunnelAndLastUpdatedAtAfter(funnel, pastDate);
+    }
+
+    @Override
+    public Map<String, Object> getSystemMetrics(String funnel, int days) {
+        log.info("ActorServiceImpl [getSystemMetrics] {} {}", funnel, days);
+
+        Map<String, Object> response = new HashMap<>();
+
+        if (funnel == null) {
+            response.put("Error","Funnel should be a word.");
+            return response;
+        }
+
+        if(days < 7 || days > 90){
+            response.put("Error", "Days must be greater than 7 and less than 90.");
+            return response;
+        }
+
+        getSystemApplications(funnel, days);
+        log.info("systemDocuments {}", systemDocuments);
+
+        if(systemDocuments.isEmpty()){
+            response.put("Error","Funnel data unavailable.");
+            return response;
+        }
+
+        int totalTasksCompleted = getTasksCompleted(funnel);
+        Map<String, Object> fastestAndSlowestTask = getFastestAndSlowestTask(funnel);
+        Map<String, Object> mostAndLeastRetriedTask = getMostAndLeastRetriedTask(funnel);
+        Map<String, Double> averageTaskTime = getAverageTaskTime(funnel);
+        Map<String, Double> taskRetries = taskRetries(funnel);
+        List<Map<String, String>> tasksAssigned = getTasksAssigned(funnel);
+
+
+        if(tasksAssigned == null){
+            log.warn("ActorServiceImpl [getActorMetrics] : tasksAssigned is empty");
+        }
+        if(averageTaskTime == null){
+            log.warn("ActorServiceImpl [getActorMetrics] : getAverageTaskTime is empty");
+        }
+        if(fastestAndSlowestTask == null || fastestAndSlowestTask.isEmpty()){
+            log.warn("ActorServiceImpl [getActorMetrics] : fastestAndSlowestTask is empty for actorId {}", funnel);
+        }
+        if(mostAndLeastRetriedTask == null || mostAndLeastRetriedTask.isEmpty()){
+            log.warn("ActorServiceImpl [getActorMetrics] : mostAndLeastRetriedTask is empty for actorId {}", funnel);
+        }
+        if(taskRetries == null){
+            log.warn("ActorServiceImpl [getActorMetrics] : taskRetries is empty for actorId {}", funnel);
+        }
+
+        response.put("average_task_time_across_applications", averageTaskTime);
+        response.put("total_tasks_completed", totalTasksCompleted);
+        response.put("tasks_assigned", tasksAssigned);
+        response.put("fastest_and_slowest_task", fastestAndSlowestTask);
+        response.put("most_and_least_retried_task", mostAndLeastRetriedTask);
+        response.put("average_retries", taskRetries);
         return response;
     }
 }
