@@ -84,13 +84,22 @@ public class ApplicationServiceImpl implements ApplicationService {
         log.info("[getTasksGroupedByFunnel] Identified {} unique funnels", funnelMinOrders.size());
 
         Map<String, LoanDurationEntity.Task> taskMetadata = Optional.ofNullable(loanDurationEntity)
-                .map(ld -> Stream.of(ld.getSourcing(), ld.getCredit(), ld.getConversion(), ld.getFulfillment())
+                .map(ld -> Arrays.stream(ld.getClass().getDeclaredFields()) // Get all fields of LoanDurationEntity
+                        .filter(field -> List.class.isAssignableFrom(field.getType())) // Filter only List fields
+                        .map(field -> {
+                            field.setAccessible(true);
+                            try {
+                                return (List<LoanDurationEntity.Task>) field.get(ld);
+                            } catch (IllegalAccessException e) {
+                                throw new RuntimeException("Failed to access field: " + field.getName(), e);
+                            }
+                        })
                         .filter(Objects::nonNull)
                         .flatMap(Collection::stream)
                         .collect(Collectors.toMap(
-                                task -> task.getTaskId(),
+                                LoanDurationEntity.Task::getTaskId,
                                 task -> task,
-                                (a, b) -> a
+                                (a, b) -> a // Handle duplicate taskIds by keeping the first occurrence
                         ))
                 ).orElse(Collections.emptyMap());
 
