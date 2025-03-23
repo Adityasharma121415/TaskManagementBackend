@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -113,52 +114,79 @@ public class ActorServiceImpl implements ActorService {
         return result;
     }
 
+//    @Override
+//    public Map<String, Object> getMostAndLeastRetriedTask(String id) {
+//        log.info("ActorServiceImpl [getMostAndLeastRetriedTsak] {}", id);
+//
+//        TaskEntity mostRetriedTask = null;
+//        TaskEntity leastRetriedTask = null;
+//
+//        if(id.matches("\\d+")){
+//            for(ActorEntity document : actorDocuments){
+//                if(!document.getActorId().equals(id)) continue;
+//
+//                for(TaskEntity task : document.getTasks()){
+//                    if(mostRetriedTask == null || task.getVisited() > mostRetriedTask.getVisited()){
+//                        mostRetriedTask = task;
+//                    }
+//                    if(leastRetriedTask == null || task.getVisited() < leastRetriedTask.getVisited()){
+//                        leastRetriedTask = task;
+//                    }
+//                }
+//            }
+//        }
+//        else{
+//            for(ActorEntity document : systemDocuments){
+//                if(!document.getFunnel().equals(id)) continue;
+//
+//                for(TaskEntity task : document.getTasks()){
+//                    if(mostRetriedTask == null || task.getVisited() > mostRetriedTask.getVisited()){
+//                        mostRetriedTask = task;
+//                    }
+//                    if(leastRetriedTask == null || task.getVisited() < leastRetriedTask.getVisited()){
+//                        leastRetriedTask = task;
+//                    }
+//                }
+//            }
+//        }
+//
+//        Map<String, Object> result = new HashMap<>();
+//        if(mostRetriedTask != null){
+//            int mostVisited = mostRetriedTask.getVisited() > 0 ? mostRetriedTask.getVisited() - 1: 0;
+//            result.put("most_retried_task", Map.of("task_id", mostRetriedTask.getTaskId(), "visited", mostVisited));
+//        }
+//        if(leastRetriedTask != null){
+//            int leastVisited = leastRetriedTask.getVisited() > 0 ? leastRetriedTask.getVisited() - 1 : 0;
+//            result.put("least_retried_task", Map.of("task_id", leastRetriedTask.getTaskId(), "visited", leastVisited));
+//        }
+//        return result;
+//    }
+
     @Override
-    public Map<String, Object> getMostAndLeastRetriedTask(String id) {
-        log.info("ActorServiceImpl [getMostAndLeastRetriedTsak] {}", id);
+    public List<Map<String, Object>> getTasksSortedByRetries(String id){
+        log.info("ActorServiceImpl [getTasksSortedByRetries] {}");
 
-        TaskEntity mostRetriedTask = null;
-        TaskEntity leastRetriedTask = null;
+        List<TaskEntity> allTasks = new ArrayList<>();
 
-        if(id.matches("\\d+")){
-            for(ActorEntity document : actorDocuments){
-                if(!document.getActorId().equals(id)) continue;
+        List<ActorEntity> sourceDocuments = id.matches("\\d+") ? actorDocuments : systemDocuments;
 
-                for(TaskEntity task : document.getTasks()){
-                    if(mostRetriedTask == null || task.getVisited() > mostRetriedTask.getVisited()){
-                        mostRetriedTask = task;
-                    }
-                    if(leastRetriedTask == null || task.getVisited() < leastRetriedTask.getVisited()){
-                        leastRetriedTask = task;
-                    }
-                }
-            }
-        }
-        else{
-            for(ActorEntity document : systemDocuments){
-                if(!document.getFunnel().equals(id)) continue;
+        for(ActorEntity document : sourceDocuments){
+            if (id.matches("\\d+") && !document.getActorId().equals(id)) continue;
+            if (!id.matches("\\d+") && !document.getFunnel().equals(id)) continue;
 
-                for(TaskEntity task : document.getTasks()){
-                    if(mostRetriedTask == null || task.getVisited() > mostRetriedTask.getVisited()){
-                        mostRetriedTask = task;
-                    }
-                    if(leastRetriedTask == null || task.getVisited() < leastRetriedTask.getVisited()){
-                        leastRetriedTask = task;
-                    }
-                }
-            }
+            allTasks.addAll(document.getTasks());
         }
 
-        Map<String, Object> result = new HashMap<>();
-        if(mostRetriedTask != null){
-            int mostVisited = mostRetriedTask.getVisited() > 0 ? mostRetriedTask.getVisited() - 1: 0;
-            result.put("most_retried_task", Map.of("task_id", mostRetriedTask.getTaskId(), "visited", mostVisited));
-        }
-        if(leastRetriedTask != null){
-            int leastVisited = leastRetriedTask.getVisited() > 0 ? leastRetriedTask.getVisited() - 1 : 0;
-            result.put("least_retried_task", Map.of("task_id", leastRetriedTask.getTaskId(), "visited", leastVisited));
-        }
-        return result;
+        allTasks.sort((t1, t2) -> Integer.compare(t2.getVisited(), t1.getVisited()));
+
+        return allTasks.stream()
+                .map(task -> {
+                    Map<String, Object> taskMap = new HashMap<>();
+                    taskMap.put("task_id", task.getTaskId());
+                    taskMap.put("visited", task.getVisited() > 0 ? task.getVisited() - 1 : 0);
+                    return taskMap;
+                })
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -547,7 +575,8 @@ public class ActorServiceImpl implements ActorService {
         Map<String, Double> thresholdAverageTaskTime = thresholdAverageTaskTime();
         Double taskEfficiencyScore = getTaskEffiencyScore(actorId);
         Map<String, Object> fastestAndSlowestTask = getFastestAndSlowestTask(actorId);
-        Map<String, Object> mostAndLeastRetriedTask = getMostAndLeastRetriedTask(actorId);
+//        Map<String, Object> mostAndLeastRetriedTask = getMostAndLeastRetriedTask(actorId);
+        List<Map<String, Object>> tasksSortedByRetries = getTasksSortedByRetries(actorId);
         Map<String, Double> taskRetries = taskRetries(actorId);
         Map<String, Double> taskRetriesThreshold = taskRetriesThreshold();
         String handledBy = getActorEmail();
@@ -567,8 +596,11 @@ public class ActorServiceImpl implements ActorService {
         if(fastestAndSlowestTask == null || fastestAndSlowestTask.isEmpty()){
             log.warn("ActorServiceImpl [getActorMetrics] : fastestAndSlowestTask is empty for actorId {}", actorId);
         }
-        if(mostAndLeastRetriedTask == null || mostAndLeastRetriedTask.isEmpty()){
-            log.warn("ActorServiceImpl [getActorMetrics] : mostAndLeastRetriedTask is empty for actorId {}", actorId);
+//        if(mostAndLeastRetriedTask == null || mostAndLeastRetriedTask.isEmpty()){
+//            log.warn("ActorServiceImpl [getActorMetrics] : mostAndLeastRetriedTask is empty for actorId {}", actorId);
+//        }
+        if(tasksSortedByRetries == null){
+            log.warn("ActorServiceImpl [getActorMetrics] : tasksSortedByRetries is empty for actorId {}", actorId);
         }
         if(taskRetries == null){
             log.warn("ActorServiceImpl [getActorMetrics] : taskRetries is empty for actorId {}", actorId);
@@ -583,7 +615,8 @@ public class ActorServiceImpl implements ActorService {
         response.put("threshold_average_task_time", thresholdAverageTaskTime);
         response.put("task_efficiency_score", taskEfficiencyScore);
         response.put("fastest_and_slowest_task", fastestAndSlowestTask);
-        response.put("most_and_least_retried_task", mostAndLeastRetriedTask);
+//        response.put("most_and_least_retried_task", mostAndLeastRetriedTask);
+        response.put("tasks_sorted_by_retries", tasksSortedByRetries);
         response.put("average_retries", taskRetries);
         response.put("average_retries_threshold", taskRetriesThreshold);
         response.put("actor_type", actorType);
@@ -624,7 +657,8 @@ public class ActorServiceImpl implements ActorService {
 
         int totalTasksCompleted = getTasksCompleted(funnel);
         Map<String, Object> fastestAndSlowestTask = getFastestAndSlowestTask(funnel);
-        Map<String, Object> mostAndLeastRetriedTask = getMostAndLeastRetriedTask(funnel);
+//        Map<String, Object> mostAndLeastRetriedTask = getMostAndLeastRetriedTask(funnel);
+        List<Map<String, Object>> tasksSortedByRetries = getTasksSortedByRetries(funnel);
         Map<String, Double> averageTaskTime = getAverageTaskTime(funnel);
         Map<String, Double> taskRetries = taskRetries(funnel);
         List<Map<String, String>> tasksAssigned = getTasksAssigned(funnel);
@@ -639,8 +673,11 @@ public class ActorServiceImpl implements ActorService {
         if(fastestAndSlowestTask == null || fastestAndSlowestTask.isEmpty()){
             log.warn("ActorServiceImpl [getActorMetrics] : fastestAndSlowestTask is empty for actorId {}", funnel);
         }
-        if(mostAndLeastRetriedTask == null || mostAndLeastRetriedTask.isEmpty()){
-            log.warn("ActorServiceImpl [getActorMetrics] : mostAndLeastRetriedTask is empty for actorId {}", funnel);
+//        if(mostAndLeastRetriedTask == null || mostAndLeastRetriedTask.isEmpty()){
+//            log.warn("ActorServiceImpl [getActorMetrics] : mostAndLeastRetriedTask is empty for actorId {}", funnel);
+//        }
+        if(tasksSortedByRetries == null || tasksSortedByRetries.isEmpty()){
+            log.warn("ActorServiceImpl [getActorMetrics] : getTasksSortedByRetries is empty for actorId {}", funnel);
         }
         if(taskRetries == null){
             log.warn("ActorServiceImpl [getActorMetrics] : taskRetries is empty for actorId {}", funnel);
@@ -650,7 +687,8 @@ public class ActorServiceImpl implements ActorService {
         response.put("total_tasks_completed", totalTasksCompleted);
         response.put("tasks_assigned", tasksAssigned);
         response.put("fastest_and_slowest_task", fastestAndSlowestTask);
-        response.put("most_and_least_retried_task", mostAndLeastRetriedTask);
+//        response.put("most_and_least_retried_task", mostAndLeastRetriedTask);
+        response.put("tasks_sorted_by_retries", tasksSortedByRetries);
         response.put("average_retries", taskRetries);
         return response;
     }
