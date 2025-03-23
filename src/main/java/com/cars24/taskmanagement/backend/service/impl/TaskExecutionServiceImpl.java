@@ -157,6 +157,7 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
 
 
             subTaskEntity.updateStatus(status, updatedAt);
+            taskTimeEntity.setRecordDate(updatedAt);
 
 
             taskExecutionTimeRepository.save(taskTimeEntity);

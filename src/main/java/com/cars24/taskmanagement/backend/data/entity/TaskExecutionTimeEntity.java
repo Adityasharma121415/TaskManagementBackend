@@ -3,6 +3,8 @@ package com.cars24.taskmanagement.backend.data.entity;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,8 +16,9 @@ public class TaskExecutionTimeEntity {
     private String applicationId;
     private String entityId;
     private String channel;
+    private Instant recordDate;
 
-    // Arrays for different funnels
+
     private List<SubTaskEntity> sourcing = new ArrayList<>();
     private List<SubTaskEntity> credit = new ArrayList<>();
     private List<SubTaskEntity> risk = new ArrayList<>();

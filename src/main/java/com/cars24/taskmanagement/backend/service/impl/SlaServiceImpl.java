@@ -6,9 +6,12 @@ import com.cars24.taskmanagement.backend.data.entity.TaskExecutionTimeEntity;
 import com.cars24.taskmanagement.backend.exceptions.SlaException;
 import com.cars24.taskmanagement.backend.data.response.SlaResponse;
 import com.cars24.taskmanagement.backend.service.SlaService;
+import com.cars24.taskmanagement.backend.utils.TimeUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -21,12 +24,50 @@ public class SlaServiceImpl implements SlaService {
 
     @Override
     public SlaResponse getSlaMetricsByChannel(String channel) {
+        // Default: no days filtering and no application status filtering.
+        return getSlaMetricsByChannel(channel, null, "");
+    }
+
+    @Override
+    public SlaResponse getSlaMetricsByChannel(String channel, Integer days) {
+        return null;
+    }
+
+    /**
+     * Overloaded method supporting filtering by days and overall application status.
+     * @param channel the channel (e.g., "D2C")
+     * @param days if provided (> 0), only records with recordDate within the last 'days' are used.
+     * @param appStatusFilter if provided (e.g., "Pending", "Approved", "Rejected"),
+     *                        only executions whose overall status matches are processed.
+     */
+    @Override
+    public SlaResponse getSlaMetricsByChannel(String channel, Integer days, String appStatusFilter) {
         List<TaskExecutionTimeEntity> executions = slaDao.getTasksByChannel(channel);
-        if (executions.isEmpty()) {
-            throw new SlaException("No data found for channel: " + channel);
+
+        // Filter by date if days parameter is provided.
+        if (days != null && days > 0) {
+            Instant cutoff = Instant.now().minus(days, ChronoUnit.DAYS);
+            executions = executions.stream()
+                    .filter(e -> e.getRecordDate() != null && e.getRecordDate().isAfter(cutoff))
+                    .collect(Collectors.toList());
+            log.info("Filtered {} records for channel: {} within last {} days", executions.size(), channel, days);
         }
 
-        log.info("Received request for SLA service of channel: {}", channel);
+        // Filter by overall application status if provided.
+        if (appStatusFilter != null && !appStatusFilter.trim().isEmpty()) {
+            executions = executions.stream()
+                    .filter(e -> determineApplicationStatus(e).equalsIgnoreCase(appStatusFilter))
+                    .collect(Collectors.toList());
+            log.info("Filtered {} records for channel: {} with overall status: {}", executions.size(), channel, appStatusFilter);
+        }
+
+        if (executions.isEmpty()) {
+            throw new SlaException("No data found for channel: " + channel +
+                    (days != null && days > 0 ? " in the past " + days + " days" : "") +
+                    (!appStatusFilter.trim().isEmpty() ? " with status " + appStatusFilter : ""));
+        }
+
+        log.info("Processing {} execution records for channel: {}", executions.size(), channel);
 
         Map<String, List<Long>> taskDurations = new LinkedHashMap<>();
         Map<String, List<Long>> taskSendbacks = new LinkedHashMap<>();
@@ -39,9 +80,9 @@ public class SlaServiceImpl implements SlaService {
         long totalTAT = calculateTotalTAT(avgFunnelTimes);
         Map<String, Long> sendbackCounts = calculateSendbackCounts(taskSendbacks);
 
-        // Compute overall dynamic TAT distribution across applications
+        // Compute overall dynamic TAT distribution (with application statuses).
         Map<String, SlaResponse.Distribution> tatDistribution = computeDynamicTatDistribution(executions);
-        // Compute dynamic per-task distributions
+        // Compute dynamic per-task distributions.
         Map<String, Map<String, SlaResponse.Distribution>> taskDistributions = computeTaskDistributions(executions);
 
         return new SlaResponse(
@@ -68,17 +109,18 @@ public class SlaServiceImpl implements SlaService {
                 }
             });
         }
+        log.info("Processed {} execution records", executions.size());
     }
 
     private Map<String, List<SubTaskEntity>> getFunnels(TaskExecutionTimeEntity execution) {
         return Map.of(
-                "sourcing", execution.getSourcing(),
-                "credit", execution.getCredit(),
-                "risk", execution.getRisk(),
-                "conversion", execution.getConversion(),
-                "rto", execution.getRto(),
-                "fulfillment", execution.getFulfillment(),
-                "disbursal", execution.getDisbursal()
+                "sourcing", execution.getSourcing() == null ? new ArrayList<>() : execution.getSourcing(),
+                "credit", execution.getCredit() == null ? new ArrayList<>() : execution.getCredit(),
+                "risk", execution.getRisk() == null ? new ArrayList<>() : execution.getRisk(),
+                "conversion", execution.getConversion() == null ? new ArrayList<>() : execution.getConversion(),
+                "rto", execution.getRto() == null ? new ArrayList<>() : execution.getRto(),
+                "fulfillment", execution.getFulfillment() == null ? new ArrayList<>() : execution.getFulfillment(),
+                "disbursal", execution.getDisbursal() == null ? new ArrayList<>() : execution.getDisbursal()
         );
     }
 
@@ -108,23 +150,8 @@ public class SlaServiceImpl implements SlaService {
 
     private long calculateTotalTAT(Map<String, String> avgFunnelTimes) {
         return (long) avgFunnelTimes.values().stream()
-                .mapToDouble(this::convertFormattedTimeToMillis)
+                .mapToDouble(TimeUtils::convertFormattedTimeToMillis)
                 .sum();
-    }
-
-    private long convertFormattedTimeToMillis(String time) {
-        String[] parts = time.split(" ");
-        long totalMillis = 0;
-        for (int i = 0; i < parts.length; i += 2) {
-            long num = Long.parseLong(parts[i]);
-            switch (parts[i + 1]) {
-                case "days" -> totalMillis += num * 24 * 3600 * 1000;
-                case "hrs" -> totalMillis += num * 3600 * 1000;
-                case "min" -> totalMillis += num * 60 * 1000;
-                case "sec" -> totalMillis += num * 1000;
-            }
-        }
-        return totalMillis;
     }
 
     private Map<String, Long> calculateSendbackCounts(Map<String, List<Long>> taskSendbacks) {
@@ -135,12 +162,13 @@ public class SlaServiceImpl implements SlaService {
                 ));
     }
 
-    // Compute overall dynamic TAT distribution across applications
+    // Compute overall dynamic TAT distribution across applications, including overall status mapping.
     private Map<String, SlaResponse.Distribution> computeDynamicTatDistribution(List<TaskExecutionTimeEntity> executions) {
         Map<String, SlaResponse.Distribution> distribution = new LinkedHashMap<>();
         long globalMin = Long.MAX_VALUE;
         long globalMax = Long.MIN_VALUE;
         Map<String, Long> appTatMap = new HashMap<>();
+        Map<String, String> appStatusMap = new HashMap<>();
         for (TaskExecutionTimeEntity execution : executions) {
             long tat = sumDurations(execution.getSourcing())
                     + sumDurations(execution.getCredit())
@@ -149,18 +177,23 @@ public class SlaServiceImpl implements SlaService {
                     + sumDurations(execution.getRto())
                     + sumDurations(execution.getFulfillment())
                     + sumDurations(execution.getDisbursal());
-            appTatMap.put(execution.getApplicationId(), tat);
+            String appId = execution.getApplicationId();
+            appTatMap.put(appId, tat);
             globalMin = Math.min(globalMin, tat);
             globalMax = Math.max(globalMax, tat);
+            // Determine overall status for the application.
+            String overallStatus = determineApplicationStatus(execution);
+            appStatusMap.put(appId, overallStatus);
         }
         long totalRange = globalMax - globalMin;
         if (totalRange == 0) {
             String rangeKey = formatRange(globalMin, globalMax);
-            SlaResponse.Distribution d = new SlaResponse.Distribution(0, new ArrayList<>());
+            SlaResponse.Distribution d = new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>());
             for (String appId : appTatMap.keySet()) {
                 d.setCount(d.getCount() + 1);
                 if (d.getApplicationIds().size() < 100) {
                     d.getApplicationIds().add(appId);
+                    d.getApplicationStatusMap().put(appId, appStatusMap.get(appId));
                 }
             }
             distribution.put(rangeKey, d);
@@ -171,9 +204,9 @@ public class SlaServiceImpl implements SlaService {
         String lowerRangeKey = formatRange(globalMin, lowerUpperBound);
         String middleRangeKey = formatRange(lowerUpperBound, middleUpperBound);
         String upperRangeKey = formatRange(middleUpperBound, globalMax);
-        distribution.put(lowerRangeKey, new SlaResponse.Distribution(0, new ArrayList<>()));
-        distribution.put(middleRangeKey, new SlaResponse.Distribution(0, new ArrayList<>()));
-        distribution.put(upperRangeKey, new SlaResponse.Distribution(0, new ArrayList<>()));
+        distribution.put(lowerRangeKey, new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>()));
+        distribution.put(middleRangeKey, new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>()));
+        distribution.put(upperRangeKey, new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>()));
         for (Map.Entry<String, Long> entry : appTatMap.entrySet()) {
             String appId = entry.getKey();
             long tat = entry.getValue();
@@ -181,17 +214,20 @@ public class SlaServiceImpl implements SlaService {
                 SlaResponse.Distribution d = distribution.get(lowerRangeKey);
                 d.setCount(d.getCount() + 1);
                 d.getApplicationIds().add(appId);
+                d.getApplicationStatusMap().put(appId, appStatusMap.get(appId));
             } else if (tat <= middleUpperBound) {
                 SlaResponse.Distribution d = distribution.get(middleRangeKey);
                 d.setCount(d.getCount() + 1);
                 d.getApplicationIds().add(appId);
+                d.getApplicationStatusMap().put(appId, appStatusMap.get(appId));
             } else {
                 SlaResponse.Distribution d = distribution.get(upperRangeKey);
                 d.setCount(d.getCount() + 1);
                 d.getApplicationIds().add(appId);
+                d.getApplicationStatusMap().put(appId, appStatusMap.get(appId));
             }
         }
-        // Trim each bucket's applicationIds list to the most recent 100 entries (assuming order of insertion reflects recency)
+        // Trim each bucket's applicationIds list to the most recent 100 entries.
         for (SlaResponse.Distribution d : distribution.values()) {
             List<String> appIds = d.getApplicationIds();
             if (appIds.size() > 100) {
@@ -224,7 +260,7 @@ public class SlaServiceImpl implements SlaService {
             Map<String, SlaResponse.Distribution> buckets = new LinkedHashMap<>();
             if (range == 0) {
                 String rangeKey = formatRange(min, max);
-                SlaResponse.Distribution dist = new SlaResponse.Distribution(0, new ArrayList<>());
+                SlaResponse.Distribution dist = new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>());
                 for (TaskDurationRecord rec : records) {
                     dist.setCount(dist.getCount() + 1);
                     dist.getApplicationIds().add(rec.applicationId);
@@ -236,9 +272,9 @@ public class SlaServiceImpl implements SlaService {
                 String bucket1 = formatRange(min, lowerUpper);
                 String bucket2 = formatRange(lowerUpper, middleUpper);
                 String bucket3 = formatRange(middleUpper, max);
-                SlaResponse.Distribution dist1 = new SlaResponse.Distribution(0, new ArrayList<>());
-                SlaResponse.Distribution dist2 = new SlaResponse.Distribution(0, new ArrayList<>());
-                SlaResponse.Distribution dist3 = new SlaResponse.Distribution(0, new ArrayList<>());
+                SlaResponse.Distribution dist1 = new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>());
+                SlaResponse.Distribution dist2 = new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>());
+                SlaResponse.Distribution dist3 = new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>());
                 for (TaskDurationRecord rec : records) {
                     if (rec.duration <= lowerUpper) {
                         dist1.setCount(dist1.getCount() + 1);
@@ -255,7 +291,7 @@ public class SlaServiceImpl implements SlaService {
                 buckets.put(bucket2, dist2);
                 buckets.put(bucket3, dist3);
             }
-            // Trim each bucket's applicationIds list to only the last 100 entries (most recent)
+            // Trim each bucket's applicationIds list to only the last 100 entries.
             for (Map.Entry<String, SlaResponse.Distribution> bucketEntry : buckets.entrySet()) {
                 List<String> appIds = bucketEntry.getValue().getApplicationIds();
                 if (appIds.size() > 100) {
@@ -317,5 +353,29 @@ public class SlaServiceImpl implements SlaService {
             this.applicationId = applicationId;
             this.duration = duration;
         }
+    }
+
+    // Helper method to determine the overall application status from a TaskExecutionTimeEntity.
+    // Logic: If any subtask is "REJECTED" → Rejected; if all tasks are "COMPLETED" (and at least one exists) → Approved; otherwise Pending.
+    private String determineApplicationStatus(TaskExecutionTimeEntity execution) {
+        boolean hasTasks = false;
+        boolean allCompleted = true;
+        boolean anyRejected = false;
+        for (List<SubTaskEntity> tasks : getFunnels(execution).values()) {
+            for (SubTaskEntity task : tasks) {
+                hasTasks = true;
+                String status = task.getStatusoftask();
+                if (status == null || !status.equalsIgnoreCase("COMPLETED")) {
+                    allCompleted = false;
+                }
+                if (status != null && status.equalsIgnoreCase("REJECTED")) {
+                    anyRejected = true;
+                }
+            }
+        }
+        if (!hasTasks) return "Pending";
+        if (anyRejected) return "Rejected";
+        if (allCompleted) return "Approved";
+        return "Pending";
     }
 }

@@ -10,8 +10,8 @@ import java.util.Map;
 public class SlaResponse {
     private Map<String, Funnel> funnels;
     private String averageTAT;
-    private Map<String, Distribution> tatDistribution; // Overall TAT distribution across applications
-    private Map<String, Map<String, Distribution>> taskDistributions; // Per-task TAT distribution
+    private Map<String, Distribution> tatDistribution;
+    private Map<String, Map<String, Distribution>> taskDistributions;
 
     @Data
     @AllArgsConstructor
@@ -32,10 +32,14 @@ public class SlaResponse {
     public static class Distribution {
         private long count;
         private List<String> applicationIds;
+        private Map<String, String> applicationStatusMap;
     }
 
-    // Updated formatDuration: displays the duration as days, hours, minutes, and seconds.
+    // Updated formatDuration method: always returns a non-empty string.
     public static String formatDuration(long millis) {
+        if (millis <= 0) {
+            return "0 sec";
+        }
         long seconds = millis / 1000;
         long days = seconds / (24 * 3600);
         seconds %= (24 * 3600);
@@ -57,7 +61,6 @@ public class SlaResponse {
         if (seconds > 0) {
             formattedTime.append(seconds).append(" sec");
         }
-
         return formattedTime.toString().trim();
     }
 }

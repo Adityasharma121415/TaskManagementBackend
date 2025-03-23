@@ -16,6 +16,7 @@ public class SlaDaoImpl  implements SlaDao {
 
     private final TaskExecutionTimeRepository repository;
 
+    @Override
     public List<TaskExecutionTimeEntity> getTasksByChannel(String channel) {
         return repository.findByChannel(channel);
     }
