@@ -28,4 +28,10 @@ public class ActorDaoImpl implements ActorDao {
         log.info("ActorDaoImpl [findAllApplications] {} {}", actorType, pastDate);
         return actorRepository.findAllByLastUpdatedAtAfter(actorType, pastDate);
     }
+
+    @Override
+    public List<ActorEntity> findAllByFunnelAndLastUpdatedAtAfter(String funnel, Date filteredDate) {
+        log.info("ActorDaoImpl [getDuration] {} {}", funnel, filteredDate);
+        return actorRepository.findAllByFunnelAndLastUpdatedAtAfter(funnel, filteredDate);
+    }
 }

@@ -17,6 +17,7 @@ public class ActorEntity {
     private String id;
     private String actorId;
     private String actorType;
+    private String funnel;
     private String applicationId;
     private List<TaskEntity> tasks;
     private Long totalDuration;
