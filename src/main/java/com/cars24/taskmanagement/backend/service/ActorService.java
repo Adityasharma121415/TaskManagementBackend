@@ -58,4 +58,8 @@ public interface ActorService {
     public Map<String, Object> getFastestAndSlowestTask(String actorId);
 
     public Map<String, Object> getMostAndLeastRetriedTask(String actorId);
+
+    void getSystemApplications(String funnel, int days);
+
+    Map<String, Object> getSystemMetrics(String funnel, int days);
 }

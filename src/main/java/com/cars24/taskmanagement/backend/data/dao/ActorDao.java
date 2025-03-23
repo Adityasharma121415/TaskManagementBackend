@@ -16,4 +16,6 @@ public interface ActorDao {
 //    public List<ActorEntity> findAllApplications(Date lastUpdatedAt);
 
     List<ActorEntity> findAllApplications(String actorType, Date pastDate);
+
+    List<ActorEntity> findAllByFunnelAndLastUpdatedAtAfter(String funnel, Date filteredDate);
 }
