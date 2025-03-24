@@ -57,7 +57,9 @@ public interface ActorService {
 
     public Map<String, Object> getFastestAndSlowestTask(String actorId);
 
-    public Map<String, Object> getMostAndLeastRetriedTask(String actorId);
+//    public Map<String, Object> getMostAndLeastRetriedTask(String actorId);
+
+    public List<Map<String, Object>> getTasksSortedByRetries(String id);
 
     void getSystemApplications(String funnel, int days);
 
