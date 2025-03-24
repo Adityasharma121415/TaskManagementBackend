@@ -42,29 +42,120 @@ public class ActorServiceImpl implements ActorService {
     public double getTaskEffiencyScore(String actorId) {
         log.info("ActorServiceImpl [getTaskEfficiencyScore] {}", actorId);
 
-        Map<String, Double> averageTaskTimeForAllAgents = thresholdAverageTaskTime();
-        Map<String, Double> averageTaskTimeForAgent = getAverageTaskTime(actorId);
+        Map<String, List<Double>> actorTaskTimes = collectTaskTimes(actorDocuments, actorId);
+        Map<String, List<Double>> globalTaskTimes = collectTaskTimes(allDocuments, null);
 
-        int efficientTasks = 0;
-        int totalNoOfTasks = 0;
+        Map<String, Map<String,Double>> agentP90 = computePercentile(actorTaskTimes);
+        Map<String, Map<String,Double>> globalPercentiles = computePercentile(globalTaskTimes);
 
-        for(Map.Entry<String, Double> entry : averageTaskTimeForAgent.entrySet()){
-            String taskId = entry.getKey();
-            Double agentTaskTime = entry.getValue();
+        Map<String, Double[]> globalAvgPercentiles = computeGlobalAvgPercentiles(globalPercentiles);
 
-            Double averageTaskTime = averageTaskTimeForAllAgents.get(taskId);
+        return computeEfficiencyScore(agentP90, globalAvgPercentiles);
+    }
 
-            if(agentTaskTime < averageTaskTime){
-                efficientTasks += 1;
+    private Map<String, List<Double>> collectTaskTimes(List<ActorEntity> documents , String actorId){
+        Map<String, List<Double>> taskTimes = new HashMap<>();
+        for(ActorEntity document: documents){
+            if(actorId!=null && !document.getActorId().equals(actorId)) continue;
+
+            for(TaskEntity task : document.getTasks()){
+                String taskId = task.getTaskId();
+                double duration = task.getDuration();
+
+                taskTimes.computeIfAbsent(taskId, k->new ArrayList<>()).add(duration);
             }
-            totalNoOfTasks += 1;
+        }
+        return taskTimes;
+    }
+
+    private Map<String, Map<String,Double>> computePercentile(Map<String, List<Double>> taskTimes){
+        Map<String, Map<String, Double>> percentiles = new HashMap<>();
+
+        for(String taskId : taskTimes.keySet()){
+            List<Double> times = taskTimes.get(taskId);
+            Collections.sort(times);
+//            percentiles.put(taskId, percentileCalculation(times, percentile));
+
+            Map<String, Double> taskPercentiles = new HashMap<>();
+            taskPercentiles.put("P90", percentileCalculation(times, 90));
+            taskPercentiles.put("P95", percentileCalculation(times, 95));
+            taskPercentiles.put("P99", percentileCalculation(times, 99));
+
+            percentiles.put(taskId, taskPercentiles);
+        }
+        return percentiles;
+    }
+
+    private Map<String, Double[]> computeGlobalAvgPercentiles(Map<String, Map<String,Double>> globalPercentiles){
+        Map<String, Double[]> globalAvgPercentiles = new HashMap<>();
+
+        for(String taskId : globalPercentiles.keySet()){
+            List<Double> p90List = new ArrayList<>();
+            List<Double> p95List = new ArrayList<>();
+            List<Double> p99List = new ArrayList<>();
+
+            for(Map.Entry<String, Map<String, Double>> entry : globalPercentiles.entrySet()){
+                Map<String, Double> percentiles = entry.getValue();
+
+                if(percentiles.containsKey(taskId)){
+                    p90List.add(percentiles.get("P90"));
+                    p95List.add(percentiles.get("P95"));
+                    p99List.add(percentiles.get("P99"));
+                }
+            }
+
+            globalAvgPercentiles.put(taskId, new Double[]{
+                    p90List.stream().mapToDouble(Double::doubleValue).average().orElse(0.0),
+                    p95List.stream().mapToDouble(Double::doubleValue).average().orElse(0.0),
+                    p99List.stream().mapToDouble(Double::doubleValue).average().orElse(0.0)
+            });
+        }
+        return globalAvgPercentiles;
+    }
+
+    private double percentileCalculation(List<Double> sortedTimes, int percentile){
+        if (sortedTimes.isEmpty()) return 0.0;
+
+        int index = (int) Math.ceil((percentile / 100.0) * sortedTimes.size()) - 1;
+        return sortedTimes.get(index);
+    }
+
+    private double computeEfficiencyScore(Map<String, Map<String,Double>> agentP90, Map<String, Double[]> globalAvgPercentiles){
+        double totalScore = 0.0;
+        int taskCount = 0;
+
+        for(String taskId : agentP90.keySet()){
+            double taskScore = computeTaskScore(taskId, agentP90, globalAvgPercentiles);
+
+            if(taskScore != -1){
+                totalScore += taskScore;
+                taskCount++;
+            }
         }
 
-        Double score = 0.0;
-        if(totalNoOfTasks > 0){
-            score = (efficientTasks * 1.0 / totalNoOfTasks) * 100;
-        }
-        return score;
+        return taskCount == 0 ? 0.0 : (totalScore/taskCount)*100;
+    }
+
+    //for one task id
+    private double computeTaskScore(String taskId, Map<String, Map<String, Double>> agentPercentiles, Map<String, Double[]> globalAvgPercentiles){
+        Map<String, Double> agentPerc = agentPercentiles.get(taskId);
+        Double[] globalPerc = globalAvgPercentiles.get(taskId);
+
+        if (globalPerc == null) return -1;
+
+        double agentP90 = agentPerc.get("P90");
+        double globalP90 = globalPerc[0];
+        double globalP95 = globalPerc[1];
+        double globalP99 = globalPerc[2];
+
+        return getScore(agentP90, globalP90, globalP95, globalP99);
+    }
+
+    private double getScore(double agentP90, double globalP90, double globalP95, double globalP99){
+        if(agentP90 <= globalP90) return 1;
+        if(agentP90 <= globalP95) return 0.75;
+        if(agentP90 <= globalP99) return 0.5;
+        return 0.25;
     }
 
     @Override
