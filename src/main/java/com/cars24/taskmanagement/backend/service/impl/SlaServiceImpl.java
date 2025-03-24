@@ -237,7 +237,7 @@ public class SlaServiceImpl implements SlaService {
         return distribution;
     }
 
-    // Compute dynamic distribution for each task.
+
     private Map<String, Map<String, SlaResponse.Distribution>> computeTaskDistributions(List<TaskExecutionTimeEntity> executions) {
         Map<String, List<TaskDurationRecord>> taskRecords = new HashMap<>();
         for (TaskExecutionTimeEntity execution : executions) {
@@ -345,7 +345,7 @@ public class SlaServiceImpl implements SlaService {
         return funnels;
     }
 
-    // Helper inner class for task duration records.
+
     private static class TaskDurationRecord {
         String applicationId;
         long duration;
@@ -355,27 +355,33 @@ public class SlaServiceImpl implements SlaService {
         }
     }
 
-    // Helper method to determine the overall application status from a TaskExecutionTimeEntity.
-    // Logic: If any subtask is "REJECTED" → Rejected; if all tasks are "COMPLETED" (and at least one exists) → Approved; otherwise Pending.
     private String determineApplicationStatus(TaskExecutionTimeEntity execution) {
         boolean hasTasks = false;
-        boolean allCompleted = true;
+        boolean allCompletedOrSkipped = true;
+        boolean anyPending = false;
         boolean anyRejected = false;
+
         for (List<SubTaskEntity> tasks : getFunnels(execution).values()) {
             for (SubTaskEntity task : tasks) {
                 hasTasks = true;
                 String status = task.getStatusoftask();
-                if (status == null || !status.equalsIgnoreCase("COMPLETED")) {
-                    allCompleted = false;
+
+                if (status == null || !(status.equalsIgnoreCase("COMPLETED") || status.equalsIgnoreCase("SKIPPED"))) {
+                    allCompletedOrSkipped = false;
                 }
+
+                if (status != null && (status.equalsIgnoreCase("NEW") || status.equalsIgnoreCase("TODO"))) {
+                    anyPending = true;
+                }
+
                 if (status != null && status.equalsIgnoreCase("REJECTED")) {
                     anyRejected = true;
                 }
             }
         }
         if (!hasTasks) return "Pending";
-        if (anyRejected) return "Rejected";
-        if (allCompleted) return "Approved";
-        return "Pending";
+        if (anyPending) return "Pending";
+        if (allCompletedOrSkipped) return "Approved";
+        return "Rejected";
     }
 }
