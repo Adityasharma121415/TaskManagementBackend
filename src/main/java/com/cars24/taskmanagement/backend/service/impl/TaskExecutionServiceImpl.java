@@ -114,6 +114,31 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
                     if (taskTimeEntity.getFulfillment() == null) taskTimeEntity.setFulfillment(new ArrayList<>());
                     subTaskEntityList = taskTimeEntity.getFulfillment();
                     break;
+                case "risk":
+                    if (taskTimeEntity.getRisk() == null) taskTimeEntity.setRisk(new ArrayList<>());
+                    subTaskEntityList = taskTimeEntity.getRisk();
+                    break;
+//                    if (taskTimeEntity.getRisk() == null) {
+//                        taskTimeEntity.setRisk(new ArrayList<>());
+//                    }
+//                    subTaskEntityList = taskTimeEntity.getRisk();
+//                    break;
+                case "rto":
+                    if (taskTimeEntity.getRto() == null) taskTimeEntity.setRto(new ArrayList<>());
+                    subTaskEntityList = taskTimeEntity.getRto();
+                    break;
+//                    if (taskTimeEntity.getRto() == null) {
+//                        taskTimeEntity.setRto(new ArrayList<>());
+//                    }
+//                    subTaskEntityList = taskTimeEntity.getRto();
+//                    break;
+                case "disbursal":
+                    if (taskTimeEntity.getDisbursal() == null) taskTimeEntity.setDisbursal(new ArrayList<>());
+                    subTaskEntityList = taskTimeEntity.getDisbursal();
+                    break;
+//                    if (taskTimeEntity.getDisbursal() == null) {
+//                        taskTimeEntity.setDisbursal(new ArrayList<>());
+//                    }
                 default:
                     logger.warn("Unknown funnel type: {}. Task execution time update skipped.", funnel);
                     return;
@@ -132,6 +157,7 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
 
 
             subTaskEntity.updateStatus(status, updatedAt);
+            taskTimeEntity.setRecordDate(updatedAt);
 
 
             taskExecutionTimeRepository.save(taskTimeEntity);
