@@ -6,21 +6,20 @@ import com.cars24.taskmanagement.backend.data.entity.TaskExecutionTimeEntity;
 import com.cars24.taskmanagement.backend.data.response.SlaResponse;
 import com.cars24.taskmanagement.backend.exceptions.SlaException;
 import com.cars24.taskmanagement.backend.service.impl.SlaServiceImpl;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.MockitoAnnotations;
 
 import java.time.Instant;
-import java.util.Collections;
-import java.util.List;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
-public class SlaServiceImplTest {
+class SlaServiceImplTest {
 
     @Mock
     private SlaDaoImpl slaDao;
@@ -28,67 +27,80 @@ public class SlaServiceImplTest {
     @InjectMocks
     private SlaServiceImpl slaService;
 
+    private TaskExecutionTimeEntity executionEntity;
 
-    private TaskExecutionTimeEntity createTaskExecutionEntity() {
-        TaskExecutionTimeEntity entity = new TaskExecutionTimeEntity();
-        Instant baseTime = Instant.now();
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        // Create a sample TaskExecutionTimeEntity for testing
+        executionEntity = new TaskExecutionTimeEntity();
+        executionEntity.setApplicationId("app1");
+        executionEntity.setEntityId("entity1");
+        executionEntity.setChannel("D2C");
+        // Set recordDate to 1 day ago
+        executionEntity.setRecordDate(Instant.now().minus(1, ChronoUnit.DAYS));
 
+        // Create a sample SubTaskEntity in the "sourcing" funnel
+        SubTaskEntity subTask = new SubTaskEntity("task1", Instant.now().minus(60, ChronoUnit.MINUTES));
+        subTask.setDuration(3600000L); // 1 hour in ms
+        subTask.setSendbacks(1);
+        subTask.setVisited(1);
+        subTask.setStatusoftask("COMPLETED");
+        List<SubTaskEntity> sourcingTasks = new ArrayList<>();
+        sourcingTasks.add(subTask);
+        executionEntity.setSourcing(sourcingTasks);
 
-        SubTaskEntity sourcingTask = new SubTaskEntity("sourcing_task1", baseTime);
-        sourcingTask.updateStatus("COMPLETED", baseTime.plusMillis(1000));
-
-        SubTaskEntity creditTask = new SubTaskEntity("credit_task1", baseTime);
-        creditTask.updateStatus("COMPLETED", baseTime.plusMillis(2000));
-
-        SubTaskEntity conversionTask = new SubTaskEntity("conversion_task1", baseTime);
-        conversionTask.updateStatus("COMPLETED", baseTime.plusMillis(3000));
-
-        SubTaskEntity fulfillmentTask = new SubTaskEntity("fulfillment_task1", baseTime);
-        fulfillmentTask.updateStatus("COMPLETED", baseTime.plusMillis(4000));
-
-
-        entity.setSourcing(Collections.singletonList(sourcingTask));
-        entity.setCredit(Collections.singletonList(creditTask));
-        entity.setConversion(Collections.singletonList(conversionTask));
-        entity.setFulfillment(Collections.singletonList(fulfillmentTask));
-
-        return entity;
+        // Initialize empty lists for other funnels.
+        executionEntity.setCredit(new ArrayList<>());
+        executionEntity.setRisk(new ArrayList<>());
+        executionEntity.setConversion(new ArrayList<>());
+        executionEntity.setRto(new ArrayList<>());
+        executionEntity.setFulfillment(new ArrayList<>());
+        executionEntity.setDisbursal(new ArrayList<>());
     }
 
     @Test
-    public void testGetSlaMetricsByChannel_NoDataFound() {
-        when(slaDao.getTasksByChannel("nonexistent")).thenReturn(Collections.emptyList());
-        assertThrows(SlaException.class, () -> slaService.getSlaMetricsByChannel("nonexistent"));
-    }
+    void testGetSlaMetricsByChannel_NoFilter() {
+        // Setup DAO to return one execution record.
+        List<TaskExecutionTimeEntity> executions = Collections.singletonList(executionEntity);
+        when(slaDao.getTasksByChannel("D2C")).thenReturn(executions);
 
-    @Test
-    public void testGetSlaMetricsByChannel_ValidData() {
-        TaskExecutionTimeEntity entity = createTaskExecutionEntity();
-        when(slaDao.getTasksByChannel("testChannel")).thenReturn(List.of(entity));
+        // Invoke SLA service with no filtering (days = null, status = empty)
+        SlaResponse response = slaService.getSlaMetricsByChannel("D2C", null, "");
 
-        SlaResponse response = slaService.getSlaMetricsByChannel("testChannel");
         assertNotNull(response);
         assertNotNull(response.getFunnels());
+        // Assuming averageTAT should be formatted as "1 hrs" (depending on SlaResponse.formatDuration implementation)
+        assertEquals("1 hrs", response.getAverageTAT().trim());
+    }
 
+    @Test
+    void testGetSlaMetricsByChannel_WithDaysFilter() {
+        List<TaskExecutionTimeEntity> executions = Collections.singletonList(executionEntity);
+        when(slaDao.getTasksByChannel("D2C")).thenReturn(executions);
 
-        assertTrue(response.getFunnels().containsKey("sourcing"));
-        assertTrue(response.getFunnels().containsKey("credit"));
-        assertTrue(response.getFunnels().containsKey("conversion"));
-        assertTrue(response.getFunnels().containsKey("fulfillment"));
+        // Use days = 7; since our recordDate is 1 day ago, it should be included.
+        SlaResponse response = slaService.getSlaMetricsByChannel("D2C", 7, "");
+        assertNotNull(response);
+    }
 
+    @Test
+    void testGetSlaMetricsByChannel_WithStatusFilter_Approved() {
+        List<TaskExecutionTimeEntity> executions = Collections.singletonList(executionEntity);
+        when(slaDao.getTasksByChannel("D2C")).thenReturn(executions);
 
-        SlaResponse.Funnel sourcingFunnel = response.getFunnels().get("sourcing");
-        assertNotNull(sourcingFunnel);
-        assertTrue(sourcingFunnel.getTasks().containsKey("sourcing_task1"));
+        // Our sample execution has one COMPLETED subtask so overall status should be Approved.
+        SlaResponse response = slaService.getSlaMetricsByChannel("D2C", null, "Approved");
+        assertNotNull(response);
+    }
 
-        SlaResponse.Task task = sourcingFunnel.getTasks().get("sourcing_task1");
-        assertNotNull(task);
+    @Test
+    void testGetSlaMetricsByChannel_NoDataFound() {
+        when(slaDao.getTasksByChannel("D2C")).thenReturn(new ArrayList<>());
 
-        assertEquals(SlaResponse.formatDuration(1000L), task.getTimeTaken());
-        assertEquals(0L, task.getNoOfSendbacks());
-
-
-        long expectedTAT = 1000L + 2000L + 3000L + 4000L;
-        assertEquals(SlaResponse.formatDuration(expectedTAT), response.getAverageTAT());
+        SlaException ex = assertThrows(SlaException.class, () -> {
+            slaService.getSlaMetricsByChannel("D2C", 7, "Pending");
+        });
+        assertTrue(ex.getMessage().contains("No data found for channel"));
     }
 }

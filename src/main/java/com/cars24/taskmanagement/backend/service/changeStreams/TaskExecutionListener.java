@@ -8,8 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Component;
@@ -23,7 +21,7 @@ import java.util.concurrent.Executors;
 @Component
 public class TaskExecutionListener {
 
-    private static final Logger logger = LoggerFactory.getLogger(TaskExecutionListener.class);
+
 
     @Autowired
     private MongoTemplate mongoTemplate;
@@ -43,7 +41,7 @@ public class TaskExecutionListener {
             try {
                 mongoTemplate.getCollection("task_execution")
                         .watch()
-                        .fullDocument(FullDocument.UPDATE_LOOKUP)  // Ensure full document is returned on updates
+                        .fullDocument(FullDocument.UPDATE_LOOKUP)
                         .forEach(this::processChangeStreamDocument);
             } catch (Exception e) {
                 log.error("Error in change stream processing", e);
@@ -79,10 +77,10 @@ public class TaskExecutionListener {
                 Instant createdAt = getInstant(fullDocument, "createdAt");
                 Instant updatedAt = getInstant(fullDocument, "updatedAt");
 
-                // Use createdAt for NEW status, updatedAt for others
+
                 Instant eventTime = status.equalsIgnoreCase("NEW") ? createdAt : updatedAt;
 
-                // Call service to update task execution time
+
                 timeService.updateTaskExecutionTime(taskId, status, createdAt, updatedAt, funnel, applicationId, entityId, channel);
             }
             else{

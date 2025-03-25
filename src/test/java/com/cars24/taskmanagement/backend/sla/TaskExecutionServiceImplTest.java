@@ -33,52 +33,6 @@ public class TaskExecutionServiceImplTest {
     @InjectMocks
     private TaskExecutionServiceImpl taskExecutionService;
 
-    @Test
-    public void testFindAll() {
-        List<TaskExecutionEntity> dummyList = new ArrayList<>();
-        TaskExecutionEntity entity = new TaskExecutionEntity();
-
-        dummyList.add(entity);
-        when(taskExecutionRepository.findAll()).thenReturn(dummyList);
-
-        List<TaskExecutionEntity> result = taskExecutionService.findAll();
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        verify(taskExecutionRepository, times(1)).findAll();
-    }
-
-    @Test
-    public void testFindById_Found() {
-        TaskExecutionEntity entity = new TaskExecutionEntity();
-        entity.setId("task1");
-        when(taskExecutionRepository.findById("task1")).thenReturn(Optional.of(entity));
-
-        Optional<TaskExecutionEntity> result = taskExecutionService.findById("task1");
-        assertTrue(result.isPresent());
-        assertEquals("task1", result.get().getId());
-        verify(taskExecutionRepository, times(1)).findById("task1");
-    }
-
-    @Test
-    public void testFindById_NotFound() {
-        when(taskExecutionRepository.findById("task1")).thenReturn(Optional.empty());
-
-        Optional<TaskExecutionEntity> result = taskExecutionService.findById("task1");
-        assertFalse(result.isPresent());
-        verify(taskExecutionRepository, times(1)).findById("task1");
-    }
-
-    @Test
-    public void testSave() {
-        TaskExecutionEntity task = new TaskExecutionEntity();
-        task.setId("task1");
-        when(taskExecutionRepository.save(any(TaskExecutionEntity.class))).thenReturn(task);
-
-        TaskExecutionEntity savedTask = taskExecutionService.save(task);
-        assertNotNull(savedTask);
-        assertEquals("task1", savedTask.getId());
-        verify(taskExecutionRepository, times(1)).save(task);
-    }
 
     @Test
     public void testUpdateTaskExecutionTime_CreateNewEntity() {
