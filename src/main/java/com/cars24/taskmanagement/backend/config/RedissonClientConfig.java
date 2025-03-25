@@ -15,7 +15,10 @@ public class RedissonClientConfig {
         Config config = new Config();
         config.useSingleServer()
                 .setAddress("redis://"+ FileConstants.REDIS_HOST + ":" + FileConstants.REDIS_PORT)
-                .setPassword(FileConstants.REDIS_PASSWORD);
+                .setPassword(FileConstants.REDIS_PASSWORD)
+                .setConnectionMinimumIdleSize(FileConstants.REDISSON_MIN_IDLE_CONNECTIONS)
+                .setConnectionPoolSize(FileConstants.TOTAL_CONNECTIONS)
+                .setRetryAttempts(FileConstants.REDISSON_RETRY_ATTEMPTS);
         return Redisson.create(config);
     }
 }
