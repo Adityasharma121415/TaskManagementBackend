@@ -24,7 +24,7 @@ public class SlaServiceImpl implements SlaService {
 
     @Override
     public SlaResponse getSlaMetricsByChannel(String channel) {
-        // Default: no days filtering and no application status filtering.
+
         return getSlaMetricsByChannel(channel, null, "");
     }
 
@@ -33,18 +33,11 @@ public class SlaServiceImpl implements SlaService {
         return null;
     }
 
-    /**
-     * Overloaded method supporting filtering by days and overall application status.
-     * @param channel the channel (e.g., "D2C")
-     * @param days if provided (> 0), only records with recordDate within the last 'days' are used.
-     * @param appStatusFilter if provided (e.g., "Pending", "Approved", "Rejected"),
-     *                        only executions whose overall status matches are processed.
-     */
     @Override
     public SlaResponse getSlaMetricsByChannel(String channel, Integer days, String appStatusFilter) {
         List<TaskExecutionTimeEntity> executions = slaDao.getTasksByChannel(channel);
 
-        // Filter by date if days parameter is provided.
+
         if (days != null && days > 0) {
             Instant cutoff = Instant.now().minus(days, ChronoUnit.DAYS);
             executions = executions.stream()
@@ -53,7 +46,7 @@ public class SlaServiceImpl implements SlaService {
             log.info("Filtered {} records for channel: {} within last {} days", executions.size(), channel, days);
         }
 
-        // Filter by overall application status if provided.
+
         if (appStatusFilter != null && !appStatusFilter.trim().isEmpty()) {
             executions = executions.stream()
                     .filter(e -> determineApplicationStatus(e).equalsIgnoreCase(appStatusFilter))
@@ -80,9 +73,9 @@ public class SlaServiceImpl implements SlaService {
         long totalTAT = calculateTotalTAT(avgFunnelTimes);
         Map<String, Long> sendbackCounts = calculateSendbackCounts(taskSendbacks);
 
-        // Compute overall dynamic TAT distribution (with application statuses).
+
         Map<String, SlaResponse.Distribution> tatDistribution = computeDynamicTatDistribution(executions);
-        // Compute dynamic per-task distributions.
+
         Map<String, Map<String, SlaResponse.Distribution>> taskDistributions = computeTaskDistributions(executions);
 
         return new SlaResponse(
@@ -162,7 +155,6 @@ public class SlaServiceImpl implements SlaService {
                 ));
     }
 
-    // Compute overall dynamic TAT distribution across applications, including overall status mapping.
     private Map<String, SlaResponse.Distribution> computeDynamicTatDistribution(List<TaskExecutionTimeEntity> executions) {
         Map<String, SlaResponse.Distribution> distribution = new LinkedHashMap<>();
         long globalMin = Long.MAX_VALUE;
@@ -291,7 +283,6 @@ public class SlaServiceImpl implements SlaService {
                 buckets.put(bucket2, dist2);
                 buckets.put(bucket3, dist3);
             }
-            // Trim each bucket's applicationIds list to only the last 100 entries.
             for (Map.Entry<String, SlaResponse.Distribution> bucketEntry : buckets.entrySet()) {
                 List<String> appIds = bucketEntry.getValue().getApplicationIds();
                 if (appIds.size() > 100) {

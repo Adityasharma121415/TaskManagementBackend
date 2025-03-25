@@ -19,14 +19,13 @@ public class SlaController {
 
     private final SlaServiceImpl slaService;
 
-    // If days are not provided, default behavior is applied
     @GetMapping("/time/{channel}")
     public SlaResponse getSlaByChannel(@PathVariable String channel) {
         log.info("Received request for SLA metrics of channel: {}", channel);
         return slaService.getSlaMetricsByChannel(channel, -1,"");
     }
 
-    // If days are provided, filter by days range
+
     @GetMapping("/time/{channel}/{days}/{appStatusFilter}")
     public SlaResponse getSlaByChannelAndStatus(@PathVariable String channel, @PathVariable int days, @PathVariable  String appStatusFilter) {
         log.info("Received request for SLA metrics of channel: {} for last {} days with status: {}", channel, days, appStatusFilter);
