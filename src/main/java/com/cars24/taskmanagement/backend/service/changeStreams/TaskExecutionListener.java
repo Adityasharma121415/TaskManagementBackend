@@ -8,11 +8,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
 import java.time.Instant;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class TaskExecutionListener {
@@ -21,6 +23,9 @@ public class TaskExecutionListener {
 
     @Autowired
     private MongoTemplate mongoTemplate;
+
+    @Autowired
+    private StringRedisTemplate redisTemplate;
 
     @Autowired
     private TaskExecutionServiceImpl timeService;
@@ -43,6 +48,9 @@ public class TaskExecutionListener {
     }
 
     private void processChangeStreamDocument(ChangeStreamDocument<Document> changeStreamDocument) {
+        String taskId=null;
+        String status=null;
+
         try {
             Document fullDocument = changeStreamDocument.getFullDocument();
             if (fullDocument == null) {
@@ -51,8 +59,8 @@ public class TaskExecutionListener {
             }
 
 
-            String taskId = getString(fullDocument, "taskId");
-            String status = getString(fullDocument, "status");
+            taskId = getString(fullDocument, "taskId");
+            status = getString(fullDocument, "status");
             String funnel = getString(fullDocument, "funnel");
             String applicationId = getString(fullDocument, "applicationId");
             String entityId = getString(fullDocument, "entityId");
@@ -65,6 +73,13 @@ public class TaskExecutionListener {
                 return;
             }
 
+            if (!acquireLock(taskId, status)) {
+                logger.info("Skipping duplicate processing for taskId={}, status={}", taskId, status);
+                return;
+            }
+
+
+
             Instant createdAt = getInstant(fullDocument, "createdAt");
             Instant updatedAt = getInstant(fullDocument, "updatedAt");
 
@@ -75,7 +90,22 @@ public class TaskExecutionListener {
             timeService.updateTaskExecutionTime(taskId, status, createdAt, updatedAt, funnel, applicationId, entityId, channel);
         } catch (Exception e) {
             logger.error("Error processing change stream event", e);
+        }finally {
+            if (taskId != null && status != null) {
+                releaseLock(taskId, status);
+            }
         }
+    }
+
+    private boolean acquireLock(String taskId, String status) {
+        String key = "lock:task:" + taskId + ":status:" + status;
+        Boolean success = redisTemplate.opsForValue().setIfAbsent(key, "1", 10, TimeUnit.SECONDS);
+        return Boolean.TRUE.equals(success);
+    }
+
+    private void releaseLock(String taskId, String status) {
+        String key = "lock:task:" + taskId + ":status:" + status;
+        redisTemplate.delete(key);
     }
 
     private String getString(Document document, String field) {
