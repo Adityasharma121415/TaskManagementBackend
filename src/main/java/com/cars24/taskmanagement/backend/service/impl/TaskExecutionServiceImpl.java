@@ -7,8 +7,7 @@ import com.cars24.taskmanagement.backend.data.repository.TaskExecutionRepository
 import com.cars24.taskmanagement.backend.data.repository.TaskExecutionTimeRepository;
 import com.cars24.taskmanagement.backend.service.TaskExecutionService;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -16,60 +15,57 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TaskExecutionServiceImpl implements TaskExecutionService {
-
-    private static final Logger logger = LoggerFactory.getLogger(TaskExecutionServiceImpl.class);
-
-    private final TaskExecutionRepository taskExecutionRepository;
     private final TaskExecutionTimeRepository taskExecutionTimeRepository;
 
-    @Override
-    public List<TaskExecutionEntity> findAll() {
-        try {
-            List<TaskExecutionEntity> tasks = taskExecutionRepository.findAll();
-            logger.info("Retrieved {} task executions", tasks.size());
-            return tasks;
-        } catch (Exception e) {
-            logger.error("Error retrieving all task executions", e);
-            throw e;
-        }
-    }
-
-    @Override
-    public Optional<TaskExecutionEntity> findById(String id) {
-        try {
-            Optional<TaskExecutionEntity> task = taskExecutionRepository.findById(id);
-            logger.info("Task retrieval by ID {}: {}", id, task.isPresent() ? "Found" : "Not Found");
-            return task;
-        } catch (Exception e) {
-            logger.error("Error retrieving task execution by ID: {}", id, e);
-            throw e;
-        }
-    }
-
-    @Override
-    public TaskExecutionEntity save(TaskExecutionEntity task) {
-        try {
-            TaskExecutionEntity savedTask = taskExecutionRepository.save(task);
-            logger.info("Task execution saved successfully with ID: {}", savedTask.getId());
-            return savedTask;
-        } catch (Exception e) {
-            logger.error("Error saving task execution", e);
-            throw e;
-        }
-    }
-
-    @Override
-    public void updateTaskExecutionTime(String taskId, String status, Instant eventTime, String funnel, String applicationId, String entityId) {
-
-    }
-
-    @Override
-    public void updateTaskExecutionTime(String taskId, String status, Instant createdAt, Instant updatedAt, String funnel, String applicationId, String entityId) {
-
-    }
+//    @Override
+//    public List<TaskExecutionEntity> findAll() {
+//        try {
+//            List<TaskExecutionEntity> tasks = taskExecutionRepository.findAll();
+//            log.info("Retrieved {} task executions", tasks.size());
+//            return tasks;
+//        } catch (Exception e) {
+//            log.error("Error retrieving all task executions", e);
+//            throw e;
+//        }
+//    }
+//
+//    @Override
+//    public Optional<TaskExecutionEntity> findById(String id) {
+//        try {
+//            Optional<TaskExecutionEntity> task = taskExecutionRepository.findById(id);
+//            log.info("Task retrieval by ID {}: {}", id, task.isPresent() ? "Found" : "Not Found");
+//            return task;
+//        } catch (Exception e) {
+//            log.error("Error retrieving task execution by ID: {}", id, e);
+//            throw e;
+//        }
+//    }
+//
+//    @Override
+//    public TaskExecutionEntity save(TaskExecutionEntity task) {
+//        try {
+//            TaskExecutionEntity savedTask = taskExecutionRepository.save(task);
+//            log.info("Task execution saved successfully with ID: {}", savedTask.getId());
+//            return savedTask;
+//        } catch (Exception e) {
+//            log.error("Error saving task execution", e);
+//            throw e;
+//        }
+//    }
+//
+//    @Override
+//    public void updateTaskExecutionTime(String taskId, String status, Instant eventTime, String funnel, String applicationId, String entityId) {
+//
+//    }
+//
+//    @Override
+//    public void updateTaskExecutionTime(String taskId, String status, Instant createdAt, Instant updatedAt, String funnel, String applicationId, String entityId) {
+//
+//    }
 
     @Override
     public void updateTaskExecutionTime(
@@ -77,25 +73,25 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
             String funnel, String applicationId, String entityId, String channel
     ) {
         try {
-            logger.info("Updating task execution time for taskId: {}, funnel: {}, status: {}, channel: {}",
+            log.info("Updating task execution time for taskId: {}, funnel: {}, status: {}, channel: {}",
                     taskId, funnel, status, channel);
 
             TaskExecutionTimeEntity taskTimeEntity = taskExecutionTimeRepository
                     .findByApplicationIdAndEntityId(applicationId, entityId)
                     .orElseGet(() -> {
-                        logger.info("No existing TaskExecutionTimeEntity found for applicationId: {}, entityId: {}. Creating new entity.",
+                        log.info("No existing TaskExecutionTimeEntity found for applicationId: {}, entityId: {}. Creating new entity.",
                                 applicationId, entityId);
                         TaskExecutionTimeEntity newEntity = new TaskExecutionTimeEntity();
                         newEntity.setApplicationId(applicationId);
                         newEntity.setEntityId(entityId);
-                        newEntity.setChannel(channel); // Set channel for new entity
-                        return taskExecutionTimeRepository.save(newEntity); // Save new entity immediately
+                        newEntity.setChannel(channel); 
+                        return taskExecutionTimeRepository.save(newEntity); 
                     });
 
-            // Ensure the channel is updated in existing entities
+            
             taskTimeEntity.setChannel(channel);
 
-            // Select the correct list based on the funnel type
+            
             List<SubTaskEntity> subTaskEntityList;
             switch (funnel.toLowerCase()) {
                 case "sourcing":
@@ -118,29 +114,19 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
                     if (taskTimeEntity.getRisk() == null) taskTimeEntity.setRisk(new ArrayList<>());
                     subTaskEntityList = taskTimeEntity.getRisk();
                     break;
-//                    if (taskTimeEntity.getRisk() == null) {
-//                        taskTimeEntity.setRisk(new ArrayList<>());
-//                    }
-//                    subTaskEntityList = taskTimeEntity.getRisk();
-//                    break;
+
                 case "rto":
                     if (taskTimeEntity.getRto() == null) taskTimeEntity.setRto(new ArrayList<>());
                     subTaskEntityList = taskTimeEntity.getRto();
                     break;
-//                    if (taskTimeEntity.getRto() == null) {
-//                        taskTimeEntity.setRto(new ArrayList<>());
-//                    }
-//                    subTaskEntityList = taskTimeEntity.getRto();
-//                    break;
+
                 case "disbursal":
                     if (taskTimeEntity.getDisbursal() == null) taskTimeEntity.setDisbursal(new ArrayList<>());
                     subTaskEntityList = taskTimeEntity.getDisbursal();
                     break;
-//                    if (taskTimeEntity.getDisbursal() == null) {
-//                        taskTimeEntity.setDisbursal(new ArrayList<>());
-//                    }
+
                 default:
-                    logger.warn("Unknown funnel type: {}. Task execution time update skipped.", funnel);
+                    log.warn("Unknown funnel type: {}. Task execution time update skipped.", funnel);
                     return;
             }
 
@@ -149,7 +135,7 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
                     .filter(t -> t.getTaskId().equals(taskId))
                     .findFirst()
                     .orElseGet(() -> {
-                        logger.info("Creating new subtask for taskId: {}", taskId);
+                        log.info("Creating new subtask for taskId: {}", taskId);
                         SubTaskEntity newSubTaskEntity = new SubTaskEntity(taskId, createdAt);
                         subTaskEntityList.add(newSubTaskEntity);
                         return newSubTaskEntity;
@@ -162,11 +148,11 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
 
             taskExecutionTimeRepository.save(taskTimeEntity);
 
-            logger.info("Task execution time updated successfully for applicationId={}, entityId={}, taskId={}, channel={}",
+            log.info("Task execution time updated successfully for applicationId={}, entityId={}, taskId={}, channel={}",
                     applicationId, entityId, taskId, channel);
 
         } catch (Exception e) {
-            logger.error("Error updating task execution time for taskId: {}, funnel: {}, status: {}, channel: {}",
+            log.error("Error updating task execution time for taskId: {}, funnel: {}, status: {}, channel: {}",
                     taskId, funnel, status, channel, e);
         }
     }
