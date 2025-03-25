@@ -59,10 +59,11 @@ public class ActorServiceImpl implements ActorService {
             if(actorId!=null && !document.getActorId().equals(actorId)) continue;
 
             for(TaskEntity task : document.getTasks()){
-                String taskId = task.getTaskId();
                 double duration = task.getDuration();
-
-                taskTimes.computeIfAbsent(taskId, k->new ArrayList<>()).add(duration);
+                if(duration > 0){
+                    String taskId = task.getTaskId();
+                    taskTimes.computeIfAbsent(taskId, k->new ArrayList<>()).add(duration);
+                }
             }
         }
         return taskTimes;
@@ -212,6 +213,26 @@ public class ActorServiceImpl implements ActorService {
         Map<String, Double[]> response = new HashMap<>();
 
         Map<String, List<Double>> tasks = collectTaskTimes(actorDocuments, actorId);
+
+        for(Map.Entry<String, List<Double>> entry : tasks.entrySet()){
+            Collections.sort(entry.getValue());
+            Double slowestTaskP90 = percentileCalculation(entry.getValue(), 90);
+            Double slowestTaskP95 = percentileCalculation(entry.getValue(), 95);
+            Double slowestTaskP99 = percentileCalculation(entry.getValue(), 99);
+            Double fastestTask = entry.getValue().get(0);
+            response.put(entry.getKey(), new Double[]{slowestTaskP90, slowestTaskP95, slowestTaskP99, fastestTask});
+        }
+
+        return response;
+    }
+
+    @Override
+    public Map<String, Double[]> getSystemTaskDuration(String funnel){
+        log.info("ActorServiceImpl [getSystemTaskDuration] {}", funnel);
+
+        Map<String, Double[]> response = new HashMap<>();
+
+        Map<String, List<Double>> tasks = collectTaskTimes(systemDocuments, null);
 
         for(Map.Entry<String, List<Double>> entry : tasks.entrySet()){
             Collections.sort(entry.getValue());
@@ -725,12 +746,11 @@ public class ActorServiceImpl implements ActorService {
 
         int totalTasksCompleted = getTasksCompleted(funnel);
         Map<String, Object> fastestAndSlowestTask = getFastestAndSlowestTask(funnel);
-//        Map<String, Object> mostAndLeastRetriedTask = getMostAndLeastRetriedTask(funnel);
         List<Map<String, Object>> tasksSortedByRetries = getTasksSortedByRetries(funnel);
         Map<String, Double> averageTaskTime = getAverageTaskTime(funnel);
         Map<String, Double> taskRetries = taskRetries(funnel);
         List<Map<String, String>> tasksAssigned = getTasksAssigned(funnel);
-
+        Map<String, Double[]> systemTaskDuration = getSystemTaskDuration(funnel);
 
         if(tasksAssigned == null){
             log.warn("ActorServiceImpl [getActorMetrics] : tasksAssigned is empty");
@@ -741,9 +761,6 @@ public class ActorServiceImpl implements ActorService {
         if(fastestAndSlowestTask == null || fastestAndSlowestTask.isEmpty()){
             log.warn("ActorServiceImpl [getActorMetrics] : fastestAndSlowestTask is empty for actorId {}", funnel);
         }
-//        if(mostAndLeastRetriedTask == null || mostAndLeastRetriedTask.isEmpty()){
-//            log.warn("ActorServiceImpl [getActorMetrics] : mostAndLeastRetriedTask is empty for actorId {}", funnel);
-//        }
         if(tasksSortedByRetries == null || tasksSortedByRetries.isEmpty()){
             log.warn("ActorServiceImpl [getActorMetrics] : getTasksSortedByRetries is empty for actorId {}", funnel);
         }
@@ -751,6 +768,7 @@ public class ActorServiceImpl implements ActorService {
             log.warn("ActorServiceImpl [getActorMetrics] : taskRetries is empty for actorId {}", funnel);
         }
 
+        response.put("task_duration", systemTaskDuration);
         response.put("average_task_time_across_applications", averageTaskTime);
         response.put("total_tasks_completed", totalTasksCompleted);
         response.put("tasks_assigned", tasksAssigned);
