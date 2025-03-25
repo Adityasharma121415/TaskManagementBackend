@@ -1,21 +1,25 @@
 package com.cars24.taskmanagement.backend.service.changeStreams;
 
+import com.cars24.taskmanagement.backend.constants.FileConstants;
 import com.cars24.taskmanagement.backend.service.impl.TaskExecutionServiceImpl;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.FullDocument;
+import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
 import java.time.Instant;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
+
+@Slf4j
 @Component
 public class TaskExecutionListener {
 
@@ -25,10 +29,10 @@ public class TaskExecutionListener {
     private MongoTemplate mongoTemplate;
 
     @Autowired
-    private StringRedisTemplate redisTemplate;
+    private TaskExecutionServiceImpl timeService;
 
     @Autowired
-    private TaskExecutionServiceImpl timeService;
+    private RedissonClient redissonClient;
 
     private ExecutorService executorService;
 
@@ -42,70 +46,57 @@ public class TaskExecutionListener {
                         .fullDocument(FullDocument.UPDATE_LOOKUP)  // Ensure full document is returned on updates
                         .forEach(this::processChangeStreamDocument);
             } catch (Exception e) {
-                logger.error("Error in change stream processing", e);
+                log.error("Error in change stream processing", e);
             }
         });
     }
 
     private void processChangeStreamDocument(ChangeStreamDocument<Document> changeStreamDocument) {
-        String taskId=null;
-        String status=null;
+
+        Document fullDocument = changeStreamDocument.getFullDocument();
+        if (fullDocument == null) {
+            log.info("TaskExecutionListener [processChangeStreamDocument] Received null document in change stream event");
+            return;
+        }
+
+        String lockKey = "lock:task:" + fullDocument.getObjectId("_id").toHexString();
+        RLock lock = redissonClient.getLock(lockKey);
+
+        boolean isLocked = false;
 
         try {
-            Document fullDocument = changeStreamDocument.getFullDocument();
-            if (fullDocument == null) {
-                logger.warn("Received null document in change stream event");
-                return;
+            isLocked = lock.tryLock(FileConstants.REDISSON_CLIENT_WAIT_TIME, FileConstants.REDISSON_CLIENT_LEASE_TIME, java.util.concurrent.TimeUnit.SECONDS);
+
+            if(isLocked){
+                log.info("TaskExecutionListener [processChange] Acquired distributed lock on key: {}", lockKey);
+                String taskId = getString(fullDocument, "taskId");
+                String status = getString(fullDocument, "status");
+                String funnel = getString(fullDocument, "funnel");
+                String applicationId = getString(fullDocument, "applicationId");
+                String entityId = getString(fullDocument, "entityId");
+                String channel = getString(fullDocument, "channel");
+
+                Instant createdAt = getInstant(fullDocument, "createdAt");
+                Instant updatedAt = getInstant(fullDocument, "updatedAt");
+
+                // Use createdAt for NEW status, updatedAt for others
+                Instant eventTime = status.equalsIgnoreCase("NEW") ? createdAt : updatedAt;
+
+                // Call service to update task execution time
+                timeService.updateTaskExecutionTime(taskId, status, createdAt, updatedAt, funnel, applicationId, entityId, channel);
             }
-
-
-            taskId = getString(fullDocument, "taskId");
-            status = getString(fullDocument, "status");
-            String funnel = getString(fullDocument, "funnel");
-            String applicationId = getString(fullDocument, "applicationId");
-            String entityId = getString(fullDocument, "entityId");
-            String channel = getString(fullDocument, "channel");
-
-            // Validate required fields
-            if (taskId == null || status == null || funnel == null || applicationId == null || entityId == null || channel == null) {
-                logger.warn("Incomplete task execution data: taskId={}, status={}, funnel={}, applicationId={}, entityId={}, channel={}",
-                        taskId, status, funnel, applicationId, entityId, channel);
-                return;
+            else{
+                log.info("TaskExecutionListener [processChangeStreamDocument] Unable to acquire lock for task: {}", fullDocument.getObjectId("_id").toHexString());
             }
-
-            if (!acquireLock(taskId, status)) {
-                logger.info("Skipping duplicate processing for taskId={}, status={}", taskId, status);
-                return;
-            }
-
-
-
-            Instant createdAt = getInstant(fullDocument, "createdAt");
-            Instant updatedAt = getInstant(fullDocument, "updatedAt");
-
-            // Use createdAt for NEW status, updatedAt for others
-            Instant eventTime = status.equalsIgnoreCase("NEW") ? createdAt : updatedAt;
-
-            // Call service to update task execution time
-            timeService.updateTaskExecutionTime(taskId, status, createdAt, updatedAt, funnel, applicationId, entityId, channel);
         } catch (Exception e) {
-            logger.error("Error processing change stream event", e);
+            log.error("Error processing change stream event", e);
+            Thread.currentThread().interrupt();
         }finally {
-            if (taskId != null && status != null) {
-                releaseLock(taskId, status);
+            if (isLocked) {
+                lock.unlock();
+                log.info("TaskExecutionListener [processChangeStreamDocument] Released distributed lock on key: {}", lockKey);
             }
         }
-    }
-
-    private boolean acquireLock(String taskId, String status) {
-        String key = "lock:task:" + taskId + ":status:" + status;
-        Boolean success = redisTemplate.opsForValue().setIfAbsent(key, "1", 10, TimeUnit.SECONDS);
-        return Boolean.TRUE.equals(success);
-    }
-
-    private void releaseLock(String taskId, String status) {
-        String key = "lock:task:" + taskId + ":status:" + status;
-        redisTemplate.delete(key);
     }
 
     private String getString(Document document, String field) {
