@@ -14,7 +14,6 @@ import java.util.concurrent.TimeUnit;
 public class RedisCacheService {
 
     @Autowired
-
     private StringRedisTemplate redisTemplate;
 
     public void storeTaskStartTime(String applicationId, String taskId, String actorId, Instant updatedAt) {
