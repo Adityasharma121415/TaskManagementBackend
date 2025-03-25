@@ -31,4 +31,5 @@ public class ActorController {
         log.info("ActorController [getSystemPerformance] {} {}", funnel, days);
         return ResponseEntity.ok().body(actorService.getSystemMetrics(funnel, days));
     }
+
 }
