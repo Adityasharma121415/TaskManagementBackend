@@ -13,6 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.bson.BsonDocument;
 import org.bson.types.Binary;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -36,6 +38,9 @@ public class TaskExecutionLogListener {
 
     @Autowired
     private RedisCacheService redisCacheService;
+
+    @Autowired
+    private RedissonClient redissonClient;
 
     String RESUME_TOKEN_COLLECTION = FileConstants.RESUME_TOKEN_COLLECTION;
     String RESUME_TOKEN_KEY = FileConstants.RESUME_TOKEN_KEY;
@@ -71,63 +76,86 @@ public class TaskExecutionLogListener {
             return;
         }
 
-        String actorId = fullDocument.getString("actorId");
-        String applicationId = fullDocument.getString("applicationId");
-        String taskId = fullDocument.getString("taskId");
-        String status = fullDocument.getString("status");
-        String actorType = fullDocument.getString("actorType");
-        Instant updatedAt = fullDocument.getDate("updatedAt").toInstant();
-        String handledBy = fullDocument.getString("handledBy");
-        String executionType = fullDocument.getString("executionType");
-        String funnel = fullDocument.getString("funnel");
+        String lockKey = "lock:task:" + fullDocument.getObjectId("_id").toHexString();
+        RLock lock = redissonClient.getLock(lockKey);
 
-        int initialTask = 0;
-        if (change.getOperationType() == OperationType.INSERT) {
-            if(executionType.equals("MANUAL")){
-                initialTask = initializeActorMetrics(actorId, applicationId, taskId, status, updatedAt, actorType, handledBy);
-            }
-            else{
-                initialTask = initializeSystemMetrics(funnel, applicationId, taskId, status, updatedAt);
-            }
-        }
+        boolean isLocked = false;
 
-        if ("NEW".equals(status) || "TODO".equals(status)) {
-            if(executionType.equals("MANUAL")){
-                redisCacheService.storeTaskStartTime(applicationId, taskId, actorId, updatedAt);
-                if(initialTask == 0){
-                    updateActorMetrics(actorId, applicationId, taskId, status, 0L, updatedAt);
+        try {
+            isLocked = lock.tryLock(FileConstants.REDISSON_CLIENT_WAIT_TIME, FileConstants.REDISSON_CLIENT_LEASE_TIME, java.util.concurrent.TimeUnit.SECONDS);
+            if (isLocked) {
+                log.info("TaskExecutionLogListener [processChange] Acquired distributed lock on key: {}", lockKey);
+
+                String actorId = fullDocument.getString("actorId");
+                String applicationId = fullDocument.getString("applicationId");
+                String taskId = fullDocument.getString("taskId");
+                String status = fullDocument.getString("status");
+                String actorType = fullDocument.getString("actorType");
+                Instant updatedAt = fullDocument.getDate("updatedAt").toInstant();
+                String handledBy = fullDocument.getString("handledBy");
+                String executionType = fullDocument.getString("executionType");
+                String funnel = fullDocument.getString("funnel");
+
+                int initialTask = 0;
+                if (change.getOperationType() == OperationType.INSERT) {
+                    if(executionType.equals("MANUAL")){
+                        initialTask = initializeActorMetrics(actorId, applicationId, taskId, status, updatedAt, actorType, handledBy);
+                    }
+                    else{
+                        initialTask = initializeSystemMetrics(funnel, applicationId, taskId, status, updatedAt);
+                    }
                 }
+
+                if ("NEW".equals(status) || "TODO".equals(status)) {
+                    if(executionType.equals("MANUAL")){
+                        redisCacheService.storeTaskStartTime(applicationId, taskId, actorId, updatedAt);
+                        if(initialTask == 0){
+                            updateActorMetrics(actorId, applicationId, taskId, status, 0L, updatedAt);
+                        }
+                    }
+                    else if(executionType.equals("AUTOMATED")){
+                        redisCacheService.storeSystemTaskStartTime(funnel, applicationId, taskId, updatedAt);
+                        if(initialTask == 0){
+                            updateSystemMetrics(funnel, applicationId, taskId, status, 0L, updatedAt);
+                        }
+                    }
+                }
+                else if ("COMPLETED".equals(status) || "FAILED".equals(status) || "SENDBACK".equals(status)) {
+                    long duration = 0L;
+                    Instant startUpdatedAt;
+                    if(executionType.equals("MANUAL")){
+                        startUpdatedAt = redisCacheService.getTaskStartTime(applicationId, taskId, actorId);
+                        if(startUpdatedAt != null){
+                            duration = updatedAt.toEpochMilli() - startUpdatedAt.toEpochMilli();
+                        }
+                        log.info("TaskExecutionLogListener [processChange] duration: {}",duration);
+                        updateActorMetrics(actorId, applicationId, taskId, status, duration, updatedAt);
+                        redisCacheService.removeTaskStartTime(applicationId, taskId, actorId);
+                    }
+                    else if(executionType.equals("AUTOMATED")){
+                        startUpdatedAt = redisCacheService.getSystemTaskStartTime(funnel, applicationId, taskId);
+                        if(startUpdatedAt != null){
+                            duration = updatedAt.toEpochMilli() - startUpdatedAt.toEpochMilli();
+                        }
+                        log.info("TaskExecutionLogListener [processChange] duration: {}",duration);
+                        updateSystemMetrics(funnel, applicationId, taskId, status, duration, updatedAt);
+                        redisCacheService.removeSystemTaskStartTime(funnel, applicationId, taskId);
+                    }
+                }
+            } else {
+                log.info("TaskExecutionLogListener [processChange] Skipped processing for lockKey {} as lock is held by another instance.", lockKey);
             }
-            else if(executionType.equals("AUTOMATED")){
-                redisCacheService.storeSystemTaskStartTime(funnel, applicationId, taskId, updatedAt);
-                if(initialTask == 0){
-                    updateSystemMetrics(funnel, applicationId, taskId, status, 0L, updatedAt);
-                }
-            }
-        }
-        else if ("COMPLETED".equals(status) || "FAILED".equals(status) || "SENDBACK".equals(status)) {
-            long duration = 0L;
-            Instant startUpdatedAt;
-            if(executionType.equals("MANUAL")){
-                startUpdatedAt = redisCacheService.getTaskStartTime(applicationId, taskId, actorId);
-                if(startUpdatedAt != null){
-                    duration = updatedAt.toEpochMilli() - startUpdatedAt.toEpochMilli();
-                }
-                log.info("TaskExecutionLogListener [processChange] duration: {}",duration);
-                updateActorMetrics(actorId, applicationId, taskId, status, duration, updatedAt);
-                redisCacheService.removeTaskStartTime(applicationId, taskId, actorId);
-            }
-            else if(executionType.equals("AUTOMATED")){
-                startUpdatedAt = redisCacheService.getSystemTaskStartTime(funnel, applicationId, taskId);
-                if(startUpdatedAt != null){
-                    duration = updatedAt.toEpochMilli() - startUpdatedAt.toEpochMilli();
-                }
-                log.info("TaskExecutionLogListener [processChange] duration: {}",duration);
-                updateSystemMetrics(funnel, applicationId, taskId, status, duration, updatedAt);
-                redisCacheService.removeSystemTaskStartTime(funnel, applicationId, taskId);
+        } catch (InterruptedException e) {
+            log.error("TaskExecutionLogListener [processChange] Error while trying to acquire lock for key: {}", lockKey, e);
+            Thread.currentThread().interrupt();
+        } finally {
+            if (isLocked) {
+                lock.unlock();
+                log.info("TaskExecutionLogListener [processChange] Released distributed lock on key: {}", lockKey);
             }
         }
     }
+
 
     private int initializeSystemMetrics(String funnel, String applicationId, String taskId, String status, Instant updatedAt){
         log.info("TaskExecutionLogListener [initializeSystemMetrics] {} {} {} {} {}", funnel, applicationId, taskId, status, updatedAt);
