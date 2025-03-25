@@ -80,74 +80,65 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
             logger.info("Updating task execution time for taskId: {}, funnel: {}, status: {}, channel: {}",
                     taskId, funnel, status, channel);
 
-            // First, try to fetch an existing TaskExecutionTimeEntity.
             TaskExecutionTimeEntity taskTimeEntity = taskExecutionTimeRepository
                     .findByApplicationIdAndEntityId(applicationId, entityId)
-                    .orElse(null);
+                    .orElseGet(() -> {
+                        logger.info("No existing TaskExecutionTimeEntity found for applicationId: {}, entityId: {}. Creating new entity.",
+                                applicationId, entityId);
+                        TaskExecutionTimeEntity newEntity = new TaskExecutionTimeEntity();
+                        newEntity.setApplicationId(applicationId);
+                        newEntity.setEntityId(entityId);
+                        newEntity.setChannel(channel); // Set channel for new entity
+                        return taskExecutionTimeRepository.save(newEntity); // Save new entity immediately
+                    });
 
-            // If no record exists, try to create a new one.
-            if (taskTimeEntity == null) {
-                TaskExecutionTimeEntity newEntity = new TaskExecutionTimeEntity();
-                newEntity.setApplicationId(applicationId);
-                newEntity.setEntityId(entityId);
-                newEntity.setChannel(channel);
-                try {
-                    taskTimeEntity = taskExecutionTimeRepository.save(newEntity);
-                } catch (org.springframework.dao.DuplicateKeyException ex) {
+            // Ensure the channel is updated in existing entities
+            taskTimeEntity.setChannel(channel);
 
-                    taskTimeEntity = taskExecutionTimeRepository.findByApplicationIdAndEntityId(applicationId, entityId)
-                            .orElseThrow(() -> new RuntimeException("Failed to retrieve duplicate record", ex));
-                }
-            } else {
-
-                taskTimeEntity.setChannel(channel);
-            }
-
-
+            // Select the correct list based on the funnel type
             List<SubTaskEntity> subTaskEntityList;
             switch (funnel.toLowerCase()) {
                 case "sourcing":
-                    if (taskTimeEntity.getSourcing() == null) {
-                        taskTimeEntity.setSourcing(new ArrayList<>());
-                    }
+                    if (taskTimeEntity.getSourcing() == null) taskTimeEntity.setSourcing(new ArrayList<>());
                     subTaskEntityList = taskTimeEntity.getSourcing();
                     break;
                 case "credit":
-                    if (taskTimeEntity.getCredit() == null) {
-                        taskTimeEntity.setCredit(new ArrayList<>());
-                    }
+                    if (taskTimeEntity.getCredit() == null) taskTimeEntity.setCredit(new ArrayList<>());
                     subTaskEntityList = taskTimeEntity.getCredit();
                     break;
                 case "conversion":
-                    if (taskTimeEntity.getConversion() == null) {
-                        taskTimeEntity.setConversion(new ArrayList<>());
-                    }
+                    if (taskTimeEntity.getConversion() == null) taskTimeEntity.setConversion(new ArrayList<>());
                     subTaskEntityList = taskTimeEntity.getConversion();
                     break;
                 case "fulfillment":
-                    if (taskTimeEntity.getFulfillment() == null) {
-                        taskTimeEntity.setFulfillment(new ArrayList<>());
-                    }
+                    if (taskTimeEntity.getFulfillment() == null) taskTimeEntity.setFulfillment(new ArrayList<>());
                     subTaskEntityList = taskTimeEntity.getFulfillment();
                     break;
                 case "risk":
-                    if (taskTimeEntity.getRisk() == null) {
-                        taskTimeEntity.setRisk(new ArrayList<>());
-                    }
+                    if (taskTimeEntity.getRisk() == null) taskTimeEntity.setRisk(new ArrayList<>());
                     subTaskEntityList = taskTimeEntity.getRisk();
                     break;
+//                    if (taskTimeEntity.getRisk() == null) {
+//                        taskTimeEntity.setRisk(new ArrayList<>());
+//                    }
+//                    subTaskEntityList = taskTimeEntity.getRisk();
+//                    break;
                 case "rto":
-                    if (taskTimeEntity.getRto() == null) {
-                        taskTimeEntity.setRto(new ArrayList<>());
-                    }
+                    if (taskTimeEntity.getRto() == null) taskTimeEntity.setRto(new ArrayList<>());
                     subTaskEntityList = taskTimeEntity.getRto();
                     break;
+//                    if (taskTimeEntity.getRto() == null) {
+//                        taskTimeEntity.setRto(new ArrayList<>());
+//                    }
+//                    subTaskEntityList = taskTimeEntity.getRto();
+//                    break;
                 case "disbursal":
-                    if (taskTimeEntity.getDisbursal() == null) {
-                        taskTimeEntity.setDisbursal(new ArrayList<>());
-                    }
+                    if (taskTimeEntity.getDisbursal() == null) taskTimeEntity.setDisbursal(new ArrayList<>());
                     subTaskEntityList = taskTimeEntity.getDisbursal();
                     break;
+//                    if (taskTimeEntity.getDisbursal() == null) {
+//                        taskTimeEntity.setDisbursal(new ArrayList<>());
+//                    }
                 default:
                     logger.warn("Unknown funnel type: {}. Task execution time update skipped.", funnel);
                     return;
@@ -166,7 +157,6 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
 
 
             subTaskEntity.updateStatus(status, updatedAt);
-
             taskTimeEntity.setRecordDate(updatedAt);
 
 
@@ -180,6 +170,5 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
                     taskId, funnel, status, channel, e);
         }
     }
-
 
 }
