@@ -250,24 +250,26 @@ public class ActorServiceImpl implements ActorService {
     public List<Map<String, Object>> getTasksSortedByRetries(String id){
         log.info("ActorServiceImpl [getTasksSortedByRetries] {}", id);
 
-        List<TaskEntity> allTasks = new ArrayList<>();
-
         List<ActorEntity> sourceDocuments = id.matches("\\d+") ? actorDocuments : systemDocuments;
+
+        Map<String, Integer> taskVisitCounts = new HashMap<>();
 
         for(ActorEntity document : sourceDocuments){
             if (id.matches("\\d+") && !document.getActorId().equals(id)) continue;
             if (!id.matches("\\d+") && !document.getFunnel().equals(id)) continue;
 
-            allTasks.addAll(document.getTasks());
+            for(TaskEntity task : document.getTasks()){
+                taskVisitCounts.put(task.getTaskId(),
+                        taskVisitCounts.getOrDefault(task.getTaskId(), 0) + task.getVisited());
+            }
         }
 
-        allTasks.sort((t1, t2) -> Integer.compare(t2.getVisited(), t1.getVisited()));
-
-        return allTasks.stream()
-                .map(task -> {
+        return taskVisitCounts.entrySet().stream()
+                .sorted((e1, e2) -> Integer.compare(e2.getValue(), e1.getValue()))  // Sort in descending order
+                .map(entry -> {
                     Map<String, Object> taskMap = new HashMap<>();
-                    taskMap.put("task_id", task.getTaskId());
-                    taskMap.put("visited", task.getVisited() > 0 ? task.getVisited() - 1 : 0);
+                    taskMap.put("task_id", entry.getKey());
+                    taskMap.put("visited", entry.getValue() > 0 ? entry.getValue() - 1 : 0);
                     return taskMap;
                 })
                 .collect(Collectors.toList());
