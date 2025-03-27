@@ -60,10 +60,10 @@ public class ActorServiceImpl implements ActorService {
 
             for(TaskEntity task : document.getTasks()){
                 double duration = task.getDuration();
-                if(duration > 0){
-                    String taskId = task.getTaskId();
-                    taskTimes.computeIfAbsent(taskId, k->new ArrayList<>()).add(duration);
-                }
+//                if(duration > 0){
+                String taskId = task.getTaskId();
+                taskTimes.computeIfAbsent(taskId, k->new ArrayList<>()).add(duration);
+//                }
             }
         }
         return taskTimes;
