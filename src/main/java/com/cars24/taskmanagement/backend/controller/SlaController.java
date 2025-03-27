@@ -19,11 +19,11 @@ public class SlaController {
 
     private final SlaServiceImpl slaService;
 
-    @GetMapping("/time/{channel}")
-    public SlaResponse getSlaByChannel(@PathVariable String channel) {
-        log.info("Received request for SLA metrics of channel: {}", channel);
-        return slaService.getSlaMetricsByChannel(channel, -1,"");
-    }
+//    @GetMapping("/time/{channel}")
+//    public SlaResponse getSlaByChannel(@PathVariable String channel) {
+//        log.info("Received request for SLA metrics of channel: {}", channel);
+//        return slaService.getSlaMetricsByChannel(channel, -1,"");
+//    }
 
 
     @GetMapping("/time/{channel}/{days}/{appStatusFilter}")

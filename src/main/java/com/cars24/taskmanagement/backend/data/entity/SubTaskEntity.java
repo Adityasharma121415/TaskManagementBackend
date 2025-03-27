@@ -3,6 +3,8 @@ package com.cars24.taskmanagement.backend.data.entity;
 import lombok.Data;
 import java.time.Instant;
 
+import static java.lang.Math.abs;
+
 @Data
 public class SubTaskEntity {
     private String taskId;
@@ -36,12 +38,12 @@ public class SubTaskEntity {
             case "COMPLETED":
                 if (this.todo_time != null && this.visited > 1) {
                     this.completed_time = updatedAt;
-                    this.duration += updatedAt.toEpochMilli() - this.todo_time.toEpochMilli();
+                    this.duration += abs(updatedAt.toEpochMilli() - this.todo_time.toEpochMilli());
                     this.sendbacks++;
                 }
                 else if (this.new_time != null && (this.visited == 1 || this.todo_time == null)) {
                     this.completed_time = updatedAt;
-                    this.duration += updatedAt.toEpochMilli() - this.new_time.toEpochMilli();
+                    this.duration += abs(updatedAt.toEpochMilli() - this.new_time.toEpochMilli()) ;
                     this.sendbacks++;
                 }
 
@@ -51,10 +53,10 @@ public class SubTaskEntity {
                 this.sendback_time = updatedAt;
 
                 if (this.todo_time != null && this.visited > 1) {
-                    this.duration += updatedAt.toEpochMilli() - this.todo_time.toEpochMilli();
+                    this.duration += abs(updatedAt.toEpochMilli() - this.todo_time.toEpochMilli()) ;
                 }
                 else if (this.new_time != null && this.visited == 1) {
-                    this.duration += updatedAt.toEpochMilli() - this.new_time.toEpochMilli();
+                    this.duration += abs(updatedAt.toEpochMilli() - this.new_time.toEpochMilli()) ;
                 }
                 break;
 
@@ -67,7 +69,7 @@ public class SubTaskEntity {
                 break;
 
             case "SKIPPED":
-                this.duration += updatedAt.toEpochMilli() - this.new_time.toEpochMilli();
+                this.duration += abs(updatedAt.toEpochMilli() - this.new_time.toEpochMilli()) ;
                 break;
 
         }
