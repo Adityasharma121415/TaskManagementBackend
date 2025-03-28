@@ -287,7 +287,9 @@ public class ActorServiceImpl implements ActorService {
         String email = "";
         for(ActorEntity document : actorDocuments){
             email = document.getHandledBy();
-            break;
+            if(!email.isEmpty()){
+                break;
+            }
         }
         return email;
     }
@@ -403,7 +405,7 @@ public class ActorServiceImpl implements ActorService {
             Integer retries = entry.getValue();
             Integer freq = frequencyOfTasksAcrossApplications.get(taskId);
 
-            Double average = (double) (retries / freq);
+            Double average = retries / (double) freq;
             response.put(taskId, average);
         }
 

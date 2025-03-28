@@ -9,6 +9,7 @@ import com.mongodb.client.model.changestream.FullDocument;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoCollection;
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.bson.BsonDocument;
@@ -31,16 +32,14 @@ import com.cars24.taskmanagement.backend.constants.FileConstants;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class TaskExecutionLogListener {
 
-    @Autowired
-    private MongoTemplate mongoTemplate;
+    private final MongoTemplate mongoTemplate;
 
-    @Autowired
-    private RedisCacheService redisCacheService;
+    private final RedisCacheService redisCacheService;
 
-    @Autowired
-    private RedissonClient redissonClient;
+    private final RedissonClient redissonClient;
 
     String RESUME_TOKEN_COLLECTION = FileConstants.RESUME_TOKEN_COLLECTION;
     String RESUME_TOKEN_KEY = FileConstants.RESUME_TOKEN_KEY;
