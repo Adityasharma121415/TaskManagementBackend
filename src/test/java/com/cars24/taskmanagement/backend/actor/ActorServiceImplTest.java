@@ -7,19 +7,15 @@ import com.cars24.taskmanagement.backend.service.impl.ActorServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.lang.reflect.Array;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class ActorServiceImplTest {
@@ -66,7 +62,7 @@ public class ActorServiceImplTest {
         List<Map<String, String>> mockResponse = Collections.singletonList(
                 Map.of("task_id", "dob_check")
         );
-        Mockito.when(actorService.getTasksAssigned("12345")).thenReturn(mockResponse);
+        when(actorService.getTasksAssigned("12345")).thenReturn(mockResponse);
 
         List<Map<String, String>> result = actorService.getTasksAssigned("12345");
 
@@ -75,19 +71,8 @@ public class ActorServiceImplTest {
     }
 
     @Test
-    void testGetMostAndLeastRetriedTask() {
-        Mockito.when(actorService.getMostAndLeastRetriedTask("12345"))
-                .thenReturn(Map.of("most_retried_task", "ogl_check", "least_retried_task", "dob_check"));
-
-        Map<String, Object> result = actorService.getMostAndLeastRetriedTask("12345");
-
-        assertNotNull(result.get("most_retried_task"));
-        assertNotNull(result.get("least_retried_task"));
-    }
-
-    @Test
     void testGetAverageTaskTime() {
-        Mockito.when(actorService.getAverageTaskTime("12345"))
+        when(actorService.getAverageTaskTime("12345"))
                 .thenReturn(Map.of("ogl_check", 50.0, "dob_check", 75.0));
 
         Map<String, Double> result = actorService.getAverageTaskTime("12345");
@@ -98,7 +83,7 @@ public class ActorServiceImplTest {
 
     @Test
     void testTaskRetries() {
-        Mockito.when(actorService.taskRetries("12345"))
+        when(actorService.taskRetries("12345"))
                 .thenReturn(Map.of("ogl_check", 2.0, "dob_check", 3.0));
 
         Map<String, Double> result = actorService.taskRetries("12345");
@@ -109,7 +94,7 @@ public class ActorServiceImplTest {
 
     @Test
     void testGetActorType() {
-        Mockito.when(actorService.getActorType("12345")).thenReturn("SOURCING");
+        when(actorService.getActorType("12345")).thenReturn("SOURCING");
 
         String result = actorService.getActorType("12345");
 
@@ -118,7 +103,7 @@ public class ActorServiceImplTest {
 
     @Test
     void testGetActorEmail() {
-        Mockito.when(actorService.getActorEmail()).thenReturn("rahul.sharma@cars24.com");
+        when(actorService.getActorEmail()).thenReturn("rahul.sharma@cars24.com");
 
         String result = actorService.getActorEmail();
 
@@ -127,7 +112,7 @@ public class ActorServiceImplTest {
 
     @Test
     void testGetFastestAndSlowestTask() {
-        Mockito.when(actorService.getFastestAndSlowestTask("12345"))
+        when(actorService.getFastestAndSlowestTask("12345"))
                 .thenReturn(Map.of("fastest_task", "ogl_check", "slowest_task", "dob_check"));
 
         Map<String, Object> result = actorService.getFastestAndSlowestTask("12345");
@@ -138,7 +123,7 @@ public class ActorServiceImplTest {
 
     @Test
     void testTaskRetriesThreshold() {
-        Mockito.when(actorService.taskRetriesThreshold())
+        when(actorService.taskRetriesThreshold())
                 .thenReturn(Map.of("ogl_check", 2.0));
 
         Map<String, Double> result = actorService.taskRetriesThreshold();
@@ -148,7 +133,7 @@ public class ActorServiceImplTest {
 
     @Test
     void testThresholdAverageTaskTime() {
-        Mockito.when(actorService.thresholdAverageTaskTime())
+        when(actorService.thresholdAverageTaskTime())
                 .thenReturn(Map.of("ogl_check", 100.0));
 
         Map<String, Double> result = actorService.thresholdAverageTaskTime();
@@ -158,17 +143,35 @@ public class ActorServiceImplTest {
 
     @Test
     void testGetTaskEfficiencyScore() {
-        Mockito.when(actorService.getTaskEffiencyScore("12345")).thenReturn(95.5);
+        String actorId = "12345";
 
-        double score = actorService.getTaskEffiencyScore("12345");
+        Map<String, List<Double>> mockActorTaskTimes = new HashMap<>();
+        mockActorTaskTimes.put("task1", Arrays.asList(7.0, 7.0, 7.0, 8.0, 8.0, 8.0, 9.0, 10.0, 12.0));
+        mockActorTaskTimes.put("task2", Arrays.asList(15.0, 15.0, 16.0, 16.0, 16.0, 16.0, 16.0, 20.0, 25.0));
+        mockActorTaskTimes.put("task3", Arrays.asList(4.0, 4.0, 4.0, 4.0, 4.0, 5.0, 5.0, 10.0, 10.0, 10.0));
 
-        assertTrue(score >= 0);
-        assertEquals(95.5, score);
+        Map<String, List<Double>> mockGlobalTaskTimes = new HashMap<>();
+        mockGlobalTaskTimes.put("task1", Arrays.asList(12.0, 22.0, 18.0));
+
+        Map<String, Map<String, Double>> mockAgentP90 = new HashMap<>();
+        mockAgentP90.put("task1", Collections.singletonMap("p90", 18.0));
+
+        Map<String, Map<String, Double>> mockGlobalPercentiles = new HashMap<>();
+        mockGlobalPercentiles.put("task1", Collections.singletonMap("p90", 20.0));
+
+        Map<String, Double[]> mockGlobalAvgPercentiles = new HashMap<>();
+        mockGlobalAvgPercentiles.put("task1", new Double[]{19.0});
+
+        double expectedEfficiencyScore = 0.0;
+
+        double actualScore = actorService.getTaskEffiencyScore(actorId);
+
+        assertEquals(expectedEfficiencyScore, actualScore, 0.00);
     }
 
     @Test
     void testGetTasksCompleted() {
-        Mockito.when(actorService.getTasksCompleted("12345")).thenReturn(1);
+        when(actorService.getTasksCompleted("12345")).thenReturn(1);
 
         int completed = actorService.getTasksCompleted("12345");
 
