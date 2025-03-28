@@ -6,6 +6,7 @@ import com.cars24.taskmanagement.backend.data.entity.TaskExecutionLogEntity;
 
 import com.cars24.taskmanagement.backend.data.repository.LoanDurationRepository;
 import com.cars24.taskmanagement.backend.data.repository.TaskExecutionLogRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -15,12 +16,12 @@ import java.util.Map;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class ApplicationDaoImpl implements ApplicationDao {
 
-    @Autowired
-    TaskExecutionLogRepository repository;
-    @Autowired
-    LoanDurationRepository durationRepository;
+    private final TaskExecutionLogRepository repository;
+
+    private final LoanDurationRepository durationRepository;
 
     public List<TaskExecutionLogEntity> findByApplicationId(String applicationId) {
         return repository.findByApplicationId(applicationId);
