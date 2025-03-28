@@ -47,17 +47,9 @@ public interface ActorService {
 
     public Date getPastDate(int days);
 
-//    public void getAllApplications(int days);
-
     void getAllApplications(String actorType, int days);
 
     public double getTaskEffiencyScore(String actorId) throws Exception;
-
-//    public double getAgentErrorRate(String actorId);
-
-    public Map<String, Object> getFastestAndSlowestTask(String actorId);
-
-//    public Map<String, Object> getMostAndLeastRetriedTask(String actorId);
 
     Map<String, Double[]> getTaskDuration(String actorId);
 

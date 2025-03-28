@@ -152,58 +152,11 @@ public class ActorServiceImpl implements ActorService {
         return getScore(agentP90, globalP90, globalP95, globalP99);
     }
 
-    private double getScore(double agentP90, double globalP90, double globalP95, double globalP99){
+    public double getScore(double agentP90, double globalP90, double globalP95, double globalP99){
         if(agentP90 <= globalP90) return 1;
         if(agentP90 <= globalP95) return 0.75;
         if(agentP90 <= globalP99) return 0.5;
         return 0.25;
-    }
-
-    @Override
-    public Map<String, Object> getFastestAndSlowestTask(String id) {
-        log.info("ActorServiceImpl [getFastestAndSlowestTask] {}", id);
-
-        TaskEntity fastestTask = null;
-        TaskEntity slowestTask = null;
-
-        if(id.matches("\\d+")){
-            for(ActorEntity document : actorDocuments){
-                if(!document.getActorId().equals(id)) continue;
-
-                for(TaskEntity task : document.getTasks()){
-                    if(fastestTask == null || task.getDuration() < fastestTask.getDuration()){
-                        fastestTask = task;
-                    }
-                    if(slowestTask == null || task.getDuration() > slowestTask.getDuration()){
-                        slowestTask = task;
-                    }
-                }
-            }
-        }
-        else{
-            for(ActorEntity document : systemDocuments){
-                if(!document.getFunnel().equals(id)) continue;
-
-                for(TaskEntity task : document.getTasks()){
-                    if(fastestTask == null || task.getDuration() < fastestTask.getDuration()){
-                        fastestTask = task;
-                    }
-                    if(slowestTask == null || task.getDuration() > slowestTask.getDuration()){
-                        slowestTask = task;
-                    }
-                }
-            }
-        }
-
-
-        Map<String, Object> result = new HashMap<>();
-        if(fastestTask != null){
-            result.put("fastest_task", Map.of("task_id", fastestTask.getTaskId(), "duration", fastestTask.getDuration()));
-        }
-        if(slowestTask != null){
-            result.put("slowest_task", Map.of("task_id", slowestTask.getTaskId(), "duration", slowestTask.getDuration()));
-        }
-        return result;
     }
 
     @Override
@@ -662,7 +615,7 @@ public class ActorServiceImpl implements ActorService {
         Map<String, Double> thresholdTaskTime = thresholdTaskTimeAcrossApplications();
         Map<String, Double> thresholdAverageTaskTime = thresholdAverageTaskTime();
         Double taskEfficiencyScore = getTaskEffiencyScore(actorId);
-        Map<String, Object> fastestAndSlowestTask = getFastestAndSlowestTask(actorId);
+//        Map<String, Object> fastestAndSlowestTask = getFastestAndSlowestTask(actorId);
         List<Map<String, Object>> tasksSortedByRetries = getTasksSortedByRetries(actorId);
         Map<String, Double> taskRetries = taskRetries(actorId);
         Map<String, Double> taskRetriesThreshold = taskRetriesThreshold();
@@ -680,9 +633,6 @@ public class ActorServiceImpl implements ActorService {
         }
         if(thresholdAverageTaskTime == null){
             log.warn("ActorServiceImpl [getActorMetrics] : thresholdAverageTaskTime is empty");
-        }
-        if(fastestAndSlowestTask == null || fastestAndSlowestTask.isEmpty()){
-            log.warn("ActorServiceImpl [getActorMetrics] : fastestAndSlowestTask is empty for actorId {}", actorId);
         }
         if(taskDuration == null){
             log.warn("ActorServiceImpl [getActorMetrics] : getTaskDuration is empty");
@@ -744,7 +694,7 @@ public class ActorServiceImpl implements ActorService {
         }
 
         int totalTasksCompleted = getTasksCompleted(funnel);
-        Map<String, Object> fastestAndSlowestTask = getFastestAndSlowestTask(funnel);
+//        Map<String, Object> fastestAndSlowestTask = getFastestAndSlowestTask(funnel);
         List<Map<String, Object>> tasksSortedByRetries = getTasksSortedByRetries(funnel);
         Map<String, Double> averageTaskTime = getAverageTaskTime(funnel);
         Map<String, Double> taskRetries = taskRetries(funnel);
@@ -756,9 +706,6 @@ public class ActorServiceImpl implements ActorService {
         }
         if(averageTaskTime == null){
             log.warn("ActorServiceImpl [getActorMetrics] : getAverageTaskTime is empty");
-        }
-        if(fastestAndSlowestTask == null || fastestAndSlowestTask.isEmpty()){
-            log.warn("ActorServiceImpl [getActorMetrics] : fastestAndSlowestTask is empty for actorId {}", funnel);
         }
         if(tasksSortedByRetries == null || tasksSortedByRetries.isEmpty()){
             log.warn("ActorServiceImpl [getActorMetrics] : getTasksSortedByRetries is empty for actorId {}", funnel);
