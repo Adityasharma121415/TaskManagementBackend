@@ -4,6 +4,7 @@ import com.cars24.taskmanagement.backend.constants.FileConstants;
 import com.cars24.taskmanagement.backend.service.impl.TaskExecutionServiceImpl;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.FullDocument;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.redisson.api.RLock;
@@ -19,19 +20,14 @@ import java.util.concurrent.Executors;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class TaskExecutionListener {
 
+    private final MongoTemplate mongoTemplate;
 
+    private final TaskExecutionServiceImpl timeService;
 
-    @Autowired
-    private MongoTemplate mongoTemplate;
-
-    @Autowired
-    private TaskExecutionServiceImpl timeService;
-
-    @Autowired
-    private RedissonClient redissonClient;
-
+    private final RedissonClient redissonClient;
     private ExecutorService executorService;
 
     @PostConstruct

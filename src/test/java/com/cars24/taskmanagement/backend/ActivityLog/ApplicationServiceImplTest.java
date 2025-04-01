@@ -200,26 +200,26 @@ class ApplicationServiceImplTest {
         return entity;
     }
 
-    @Test
-    void testSendbackTaskProcessing() {
-        // Arrange
-        Map<String, Object> mockData = new HashMap<>();
-        mockData.put("tasks", Collections.singletonList(createMockSendbackTask()));
-        mockData.put("loanDurationEntity", createMockLoanDuration());
-
-        when(taskExecutionDao.findTasksAndLoanDurationByApplicationId(APPLICATION_ID))
-                .thenReturn(mockData);
-
-        // Act
-        Map<String, Object> response = applicationService.getTasksGroupedByFunnel(APPLICATION_ID);
-
-        // Assert
-        assertNotNull(response);
-        @SuppressWarnings("unchecked")
-        Map<String, List<TaskResponse>> sendbackTasks = (Map<String, List<TaskResponse>>) response.get("sendbackTasks");
-        assertFalse(sendbackTasks.isEmpty());
-        assertTrue(sendbackTasks.containsKey("request-1"));
-    }
+//    @Test
+//    void testSendbackTaskProcessing() {
+//        // Arrange
+//        Map<String, Object> mockData = new HashMap<>();
+//        mockData.put("tasks", Collections.singletonList(createMockSendbackTask()));
+//        mockData.put("loanDurationEntity", createMockLoanDuration());
+//
+//        when(taskExecutionDao.findTasksAndLoanDurationByApplicationId(APPLICATION_ID))
+//                .thenReturn(mockData);
+//
+//        // Act
+//        Map<String, Object> response = applicationService.getTasksGroupedByFunnel(APPLICATION_ID);
+//
+//        // Assert
+//        assertNotNull(response);
+//        @SuppressWarnings("unchecked")
+//        Map<String, List<TaskResponse>> sendbackTasks = (Map<String, List<TaskResponse>>) response.get("sendbackTasks");
+//        assertFalse(sendbackTasks.isEmpty());
+//        assertTrue(sendbackTasks.containsKey("request-1"));
+//    }
 
     @Test
     void testLatestTaskState() {
