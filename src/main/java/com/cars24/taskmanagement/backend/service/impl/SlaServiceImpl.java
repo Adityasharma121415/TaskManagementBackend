@@ -22,28 +22,9 @@ public class SlaServiceImpl implements SlaService {
 
     private final SlaDaoImpl slaDao;
 
-//    @Override
-//    public SlaResponse getSlaMetricsByChannel(String channel) {
-//        // Default: no days filtering and no application status filtering.
-//        return getSlaMetricsByChannel(channel, null, "");
-//    }
-//
-//    @Override
-//    public SlaResponse getSlaMetricsByChannel(String channel, Integer days) {
-//        return null;
-//    }
-//
-//    /**
-//     * Overloaded method supporting filtering by days and overall application status.
-//     * @param channel the channel (e.g., "D2C")
-//     * @param days if provided (> 0), only records with recordDate within the last 'days' are used.
-//     * @param appStatusFilter if provided (e.g., "Pending", "Approved", "Rejected"),
-//     *                        only executions whose overall status matches are processed.
-//     */
     @Override
     public SlaResponse getSlaMetricsByChannel(String channel, Integer days, String appStatusFilter) {
         List<TaskExecutionTimeEntity> executions = slaDao.getTasksByChannel(channel);
-
 
         if (days != null && days > 0) {
             Instant cutoff = Instant.now().minus(days, ChronoUnit.DAYS);
@@ -52,7 +33,6 @@ public class SlaServiceImpl implements SlaService {
                     .collect(Collectors.toList());
             log.info("Filtered {} records for channel: {} within last {} days", executions.size(), channel, days);
         }
-
 
         if (appStatusFilter != null && !appStatusFilter.trim().isEmpty()) {
             executions = executions.stream()
@@ -80,9 +60,7 @@ public class SlaServiceImpl implements SlaService {
         long totalTAT = calculateTotalTAT(avgFunnelTimes);
         Map<String, Long> sendbackCounts = calculateSendbackCounts(taskSendbacks);
 
-
         Map<String, SlaResponse.Distribution> tatDistribution = computeDynamicTatDistribution(executions);
-
         Map<String, Map<String, SlaResponse.Distribution>> taskDistributions = computeTaskDistributions(executions);
 
         return new SlaResponse(
@@ -162,12 +140,15 @@ public class SlaServiceImpl implements SlaService {
                 ));
     }
 
+    // Updated computeDynamicTatDistribution using quantile-based thresholds with a 10% tolerance.
     private Map<String, SlaResponse.Distribution> computeDynamicTatDistribution(List<TaskExecutionTimeEntity> executions) {
         Map<String, SlaResponse.Distribution> distribution = new LinkedHashMap<>();
         long globalMin = Long.MAX_VALUE;
         long globalMax = Long.MIN_VALUE;
         Map<String, Long> appTatMap = new HashMap<>();
         Map<String, String> appStatusMap = new HashMap<>();
+
+        // Calculate total TAT for each execution and track global min/max
         for (TaskExecutionTimeEntity execution : executions) {
             long tat = sumDurations(execution.getSourcing())
                     + sumDurations(execution.getCredit())
@@ -183,8 +164,13 @@ public class SlaServiceImpl implements SlaService {
             String overallStatus = determineApplicationStatus(execution);
             appStatusMap.put(appId, overallStatus);
         }
-        long totalRange = globalMax - globalMin;
-        if (totalRange == 0) {
+
+        // Create a sorted list of TAT values
+        List<Long> tatValues = new ArrayList<>(appTatMap.values());
+        Collections.sort(tatValues);
+
+        // If no variation, fall back to a single bucket
+        if (globalMin == globalMax) {
             String rangeKey = formatRange(globalMin, globalMax);
             SlaResponse.Distribution d = new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>());
             for (String appId : appTatMap.keySet()) {
@@ -197,23 +183,44 @@ public class SlaServiceImpl implements SlaService {
             distribution.put(rangeKey, d);
             return distribution;
         }
-        long lowerUpperBound = globalMin + (long)(0.3 * totalRange);
-        long middleUpperBound = globalMin + (long)(0.7 * totalRange);
-        String lowerRangeKey = formatRange(globalMin, lowerUpperBound);
-        String middleRangeKey = formatRange(lowerUpperBound, middleUpperBound);
-        String upperRangeKey = formatRange(middleUpperBound, globalMax);
+
+        // Compute the 30th and 70th percentiles using a helper method.
+        long p30 = getPercentile(tatValues, 30);
+        long p70 = getPercentile(tatValues, 70);
+
+        // Calculate tolerance for the boundaries (10% of the respective bucket widths)
+        double tolLower = (p30 - globalMin) * 0.1;
+        double tolUpper = (globalMax - p70) * 0.1;
+
+        // Define bucket keys using the dynamic thresholds:
+        String lowerRangeKey = formatRange(globalMin, p30);
+        String middleRangeKey = formatRange(p30, p70);
+        String upperRangeKey = formatRange(p70, globalMax);
+
         distribution.put(lowerRangeKey, new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>()));
         distribution.put(middleRangeKey, new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>()));
         distribution.put(upperRangeKey, new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>()));
+
+        // Bucket each application based on its TAT with tolerance adjustments.
         for (Map.Entry<String, Long> entry : appTatMap.entrySet()) {
             String appId = entry.getKey();
             long tat = entry.getValue();
-            if (tat <= lowerUpperBound) {
+            // If tat is very close to the lower threshold (within tolLower), treat it as lowest.
+            if (tat <= p30 || (tat > p30 && tat - p30 <= tolLower)) {
                 SlaResponse.Distribution d = distribution.get(lowerRangeKey);
                 d.setCount(d.getCount() + 1);
                 d.getApplicationIds().add(appId);
                 d.getApplicationStatusMap().put(appId, appStatusMap.get(appId));
-            } else if (tat <= middleUpperBound) {
+            }
+            // If tat is near the upper boundary of the middle bucket (within tolUpper), assign it to middle.
+            else if (tat < p70 && (p70 - tat <= tolUpper)) {
+                SlaResponse.Distribution d = distribution.get(middleRangeKey);
+                d.setCount(d.getCount() + 1);
+                d.getApplicationIds().add(appId);
+                d.getApplicationStatusMap().put(appId, appStatusMap.get(appId));
+            }
+            // Otherwise, use the normal rules.
+            else if (tat < p70) {
                 SlaResponse.Distribution d = distribution.get(middleRangeKey);
                 d.setCount(d.getCount() + 1);
                 d.getApplicationIds().add(appId);
@@ -225,7 +232,8 @@ public class SlaServiceImpl implements SlaService {
                 d.getApplicationStatusMap().put(appId, appStatusMap.get(appId));
             }
         }
-        // Trim each bucket's applicationIds list to the most recent 100 entries.
+
+        // Trim each bucket's applicationIds list to the most recent 100 entries if necessary.
         for (SlaResponse.Distribution d : distribution.values()) {
             List<String> appIds = d.getApplicationIds();
             if (appIds.size() > 100) {
@@ -235,7 +243,17 @@ public class SlaServiceImpl implements SlaService {
         return distribution;
     }
 
+    /**
+     * Helper method to compute the given percentile (e.g., 30 or 70) from a sorted list of long values.
+     */
+    private long getPercentile(List<Long> sortedList, double percentile) {
+        if (sortedList.isEmpty()) return 0L;
+        int index = (int) Math.ceil(percentile / 100.0 * sortedList.size()) - 1;
+        index = Math.max(0, index);
+        return sortedList.get(index);
+    }
 
+    // Updated computeTaskDistributions using quantile-based thresholds with a 10% tolerance.
     private Map<String, Map<String, SlaResponse.Distribution>> computeTaskDistributions(List<TaskExecutionTimeEntity> executions) {
         Map<String, List<TaskDurationRecord>> taskRecords = new HashMap<>();
         for (TaskExecutionTimeEntity execution : executions) {
@@ -252,12 +270,20 @@ public class SlaServiceImpl implements SlaService {
         for (Map.Entry<String, List<TaskDurationRecord>> entry : taskRecords.entrySet()) {
             String taskId = entry.getKey();
             List<TaskDurationRecord> records = entry.getValue();
-            long min = records.stream().mapToLong(r -> r.duration).min().orElse(0);
-            long max = records.stream().mapToLong(r -> r.duration).max().orElse(0);
-            long range = max - min;
+
+            // Create a sorted list of durations for this task.
+            List<Long> durations = records.stream()
+                    .map(r -> r.duration)
+                    .sorted()
+                    .collect(Collectors.toList());
+
+            long globalMin = durations.get(0);
+            long globalMax = durations.get(durations.size() - 1);
             Map<String, SlaResponse.Distribution> buckets = new LinkedHashMap<>();
-            if (range == 0) {
-                String rangeKey = formatRange(min, max);
+
+            // If there's no variation, assign all records to a single bucket.
+            if (globalMin == globalMax) {
+                String rangeKey = formatRange(globalMin, globalMax);
                 SlaResponse.Distribution dist = new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>());
                 for (TaskDurationRecord rec : records) {
                     dist.setCount(dist.getCount() + 1);
@@ -265,31 +291,46 @@ public class SlaServiceImpl implements SlaService {
                 }
                 buckets.put(rangeKey, dist);
             } else {
-                long lowerUpper = min + (long)(0.3 * range);
-                long middleUpper = min + (long)(0.7 * range);
-                String bucket1 = formatRange(min, lowerUpper);
-                String bucket2 = formatRange(lowerUpper, middleUpper);
-                String bucket3 = formatRange(middleUpper, max);
-                SlaResponse.Distribution dist1 = new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>());
-                SlaResponse.Distribution dist2 = new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>());
-                SlaResponse.Distribution dist3 = new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>());
+                // Compute the 30th and 70th percentiles for this task's durations.
+                long p30 = getPercentile(durations, 30);
+                long p70 = getPercentile(durations, 70);
+
+                // Calculate tolerance for the boundaries (10% of the respective bucket widths)
+                double tolLower = (p30 - globalMin) * 0.1;
+                double tolUpper = (globalMax - p70) * 0.1;
+
+                // Define bucket keys based on the dynamic thresholds.
+                String lowerRangeKey = formatRange(globalMin, p30);
+                String middleRangeKey = formatRange(p30, p70);
+                String upperRangeKey = formatRange(p70, globalMax);
+
+                buckets.put(lowerRangeKey, new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>()));
+                buckets.put(middleRangeKey, new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>()));
+                buckets.put(upperRangeKey, new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>()));
+
+                // Bucket each record based on its duration with tolerance adjustments.
                 for (TaskDurationRecord rec : records) {
-                    if (rec.duration <= lowerUpper) {
-                        dist1.setCount(dist1.getCount() + 1);
-                        dist1.getApplicationIds().add(rec.applicationId);
-                    } else if (rec.duration <= middleUpper) {
-                        dist2.setCount(dist2.getCount() + 1);
-                        dist2.getApplicationIds().add(rec.applicationId);
+                    if (rec.duration <= p30 || (rec.duration > p30 && rec.duration - p30 <= tolLower)) {
+                        SlaResponse.Distribution d = buckets.get(lowerRangeKey);
+                        d.setCount(d.getCount() + 1);
+                        d.getApplicationIds().add(rec.applicationId);
+                    } else if (rec.duration < p70 && (p70 - rec.duration <= tolUpper)) {
+                        SlaResponse.Distribution d = buckets.get(middleRangeKey);
+                        d.setCount(d.getCount() + 1);
+                        d.getApplicationIds().add(rec.applicationId);
+                    } else if (rec.duration < p70) {
+                        SlaResponse.Distribution d = buckets.get(middleRangeKey);
+                        d.setCount(d.getCount() + 1);
+                        d.getApplicationIds().add(rec.applicationId);
                     } else {
-                        dist3.setCount(dist3.getCount() + 1);
-                        dist3.getApplicationIds().add(rec.applicationId);
+                        SlaResponse.Distribution d = buckets.get(upperRangeKey);
+                        d.setCount(d.getCount() + 1);
+                        d.getApplicationIds().add(rec.applicationId);
                     }
                 }
-                buckets.put(bucket1, dist1);
-                buckets.put(bucket2, dist2);
-                buckets.put(bucket3, dist3);
             }
-            // Trim each bucket's applicationIds list to only the last 100 entries.
+
+            // Trim each bucket's applicationIds list to only the last 100 entries if needed.
             for (Map.Entry<String, SlaResponse.Distribution> bucketEntry : buckets.entrySet()) {
                 List<String> appIds = bucketEntry.getValue().getApplicationIds();
                 if (appIds.size() > 100) {
@@ -342,7 +383,6 @@ public class SlaServiceImpl implements SlaService {
         }
         return funnels;
     }
-
 
     private static class TaskDurationRecord {
         String applicationId;
