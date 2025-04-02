@@ -131,7 +131,8 @@ public class TaskExecutionListener {
     private BsonDocument getStoredResumeToken() {
         Document storedTokenDoc = mongoTemplate.getCollection("resume_tokens").find(new Document("_id", RESUME_TOKEN_KEY)).first();
         if (storedTokenDoc != null && storedTokenDoc.containsKey("resumeToken")) {
-            BsonDocument storedToken = storedTokenDoc.get("resumeToken", BsonDocument.class);
+            Document resumeTokenDoc = storedTokenDoc.get("resumeToken", Document.class);
+            BsonDocument storedToken = BsonDocument.parse(resumeTokenDoc.toJson());
             log.info("TaskExecutionListener [getStoredResumeToken] Retrieved stored resume token: {}", storedToken);
             return storedToken;
         }
