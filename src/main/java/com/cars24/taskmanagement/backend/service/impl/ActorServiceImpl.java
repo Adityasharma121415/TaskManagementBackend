@@ -511,7 +511,7 @@ public class ActorServiceImpl implements ActorService {
                 for(TaskEntity task : document.getTasks()){
                     String status = task.getStatus();
                     Map<String, String> taskDetails = new HashMap<>();
-                    if(status.equals("NEW") || status.equals("IN_PROGRESS") || status.equals("TODO") || status.equals("FAILED")){
+                    if(status.equals("IN_PROGRESS") || status.equals("TODO") || status.equals("FAILED")){
                         taskDetails.put("task_name", task.getTaskId());
                         taskDetails.put("application_id", applicationId);
                         taskDetails.put("status", status);
@@ -528,7 +528,7 @@ public class ActorServiceImpl implements ActorService {
                 for(TaskEntity task : document.getTasks()){
                     String status = task.getStatus();
                     Map<String, String> taskDetails = new HashMap<>();
-                    if(status.equals("NEW") || status.equals("IN_PROGRESS") || status.equals("TODO") || status.equals("FAILED")){
+                    if(status.equals("IN_PROGRESS") || status.equals("TODO") || status.equals("FAILED")){
                         taskDetails.put("task_name", task.getTaskId());
                         taskDetails.put("application_id", applicationId);
                         taskDetails.put("status", status);
