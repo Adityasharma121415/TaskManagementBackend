@@ -216,11 +216,13 @@ public class ActorServiceImpl implements ActorService {
 
         for(Map.Entry<String, List<Double>> entry : tasks.entrySet()){
             Collections.sort(entry.getValue());
-            Double slowestTaskP90 = percentileCalculation(entry.getValue(), 90);
-            Double slowestTaskP95 = percentileCalculation(entry.getValue(), 95);
-            Double slowestTaskP99 = percentileCalculation(entry.getValue(), 99);
             Double fastestTask = entry.getValue().get(0);
-            response.put(entry.getKey(), new Double[]{slowestTaskP90, slowestTaskP95, slowestTaskP99, fastestTask});
+            Double slowestTask = entry.getValue().get(entry.getValue().size() - 1);
+            Double TaskP50 = percentileCalculation(entry.getValue(), 50);
+            Double TaskP90 = percentileCalculation(entry.getValue(), 90);
+            Double TaskP95 = percentileCalculation(entry.getValue(), 95);
+            Double TaskP99 = percentileCalculation(entry.getValue(), 99);
+            response.put(entry.getKey(), new Double[]{fastestTask, slowestTask, TaskP50, TaskP90, TaskP95, TaskP99});
         }
 
         return response;
@@ -236,27 +238,34 @@ public class ActorServiceImpl implements ActorService {
 
         for(Map.Entry<String, List<Double>> entry : tasks.entrySet()){
             Collections.sort(entry.getValue());
-            Double slowestTaskP90 = percentileCalculation(entry.getValue(), 90);
-            Double slowestTaskP95 = percentileCalculation(entry.getValue(), 95);
-            Double slowestTaskP99 = percentileCalculation(entry.getValue(), 99);
             Double fastestTask = entry.getValue().get(0);
-            response.put(entry.getKey(), new Double[]{slowestTaskP90, slowestTaskP95, slowestTaskP99, fastestTask});
+            Double slowestTask = entry.getValue().get(entry.getValue().size() - 1);
+            Double TaskP50 = percentileCalculation(entry.getValue(), 50);
+            Double TaskP90 = percentileCalculation(entry.getValue(), 90);
+            Double TaskP95 = percentileCalculation(entry.getValue(), 95);
+            Double TaskP99 = percentileCalculation(entry.getValue(), 99);
+            response.put(entry.getKey(), new Double[]{fastestTask, slowestTask, TaskP50, TaskP90, TaskP95, TaskP99});
         }
 
         return response;
     }
 
     @Override
-    public List<Map<String, Object>> getTasksSortedByRetries(String id){
+    public Map<String, Object> getTasksSortedByRetries(String id){
         log.info("ActorServiceImpl [getTasksSortedByRetries] {}", id);
 
         List<ActorEntity> sourceDocuments = id.matches("\\d+") ? actorDocuments : systemDocuments;
 
         Map<String, Integer> taskVisitCounts = new HashMap<>();
+        Map<String, Object> result = new HashMap<>();
+
+        int totalApplications = 0;
 
         for(ActorEntity document : sourceDocuments){
             if (id.matches("\\d+") && !document.getActorId().equals(id)) continue;
             if (!id.matches("\\d+") && !document.getFunnel().equals(id)) continue;
+
+            totalApplications += 1;
 
             for(TaskEntity task : document.getTasks()){
                 taskVisitCounts.put(task.getTaskId(),
@@ -264,7 +273,7 @@ public class ActorServiceImpl implements ActorService {
             }
         }
 
-        return taskVisitCounts.entrySet().stream()
+        List<Map<String, Object>> sortedTasks = taskVisitCounts.entrySet().stream()
                 .sorted((e1, e2) -> Integer.compare(e2.getValue(), e1.getValue()))  // Sort in descending order
                 .map(entry -> {
                     Map<String, Object> taskMap = new HashMap<>();
@@ -273,6 +282,10 @@ public class ActorServiceImpl implements ActorService {
                     return taskMap;
                 })
                 .collect(Collectors.toList());
+
+        result.put("number_of_applications", totalApplications);
+        result.put("tasks", sortedTasks);
+        return result;
     }
 
     @Override
@@ -543,7 +556,7 @@ public class ActorServiceImpl implements ActorService {
                 for(TaskEntity task : document.getTasks()){
                     String status = task.getStatus();
                     Map<String, String> taskDetails = new HashMap<>();
-                    if(status.equals("NEW") || status.equals("IN_PROGRESS") || status.equals("TODO") || status.equals("FAILED")){
+                    if(status.equals("IN_PROGRESS") || status.equals("TODO") || status.equals("FAILED")){
                         taskDetails.put("task_name", task.getTaskId());
                         taskDetails.put("application_id", applicationId);
                         taskDetails.put("status", status);
@@ -560,7 +573,7 @@ public class ActorServiceImpl implements ActorService {
                 for(TaskEntity task : document.getTasks()){
                     String status = task.getStatus();
                     Map<String, String> taskDetails = new HashMap<>();
-                    if(status.equals("NEW") || status.equals("IN_PROGRESS") || status.equals("TODO") || status.equals("FAILED")){
+                    if(status.equals("IN_PROGRESS") || status.equals("TODO") || status.equals("FAILED")){
                         taskDetails.put("task_name", task.getTaskId());
                         taskDetails.put("application_id", applicationId);
                         taskDetails.put("status", status);
@@ -662,7 +675,7 @@ public class ActorServiceImpl implements ActorService {
         Double taskEfficiencyScore = getTaskEffiencyScore(actorId);
         Map<String, Object> fastestAndSlowestTask = getFastestAndSlowestTask(actorId);
 //        Map<String, Object> mostAndLeastRetriedTask = getMostAndLeastRetriedTask(actorId);
-        List<Map<String, Object>> tasksSortedByRetries = getTasksSortedByRetries(actorId);
+        Map<String, Object> tasksSortedByRetries = getTasksSortedByRetries(actorId);
         Map<String, Double> taskRetries = taskRetries(actorId);
         Map<String, Double> taskRetriesThreshold = taskRetriesThreshold();
         String handledBy = getActorEmail();
@@ -748,7 +761,7 @@ public class ActorServiceImpl implements ActorService {
 
         int totalTasksCompleted = getTasksCompleted(funnel);
         Map<String, Object> fastestAndSlowestTask = getFastestAndSlowestTask(funnel);
-        List<Map<String, Object>> tasksSortedByRetries = getTasksSortedByRetries(funnel);
+        Map<String, Object> tasksSortedByRetries = getTasksSortedByRetries(funnel);
         Map<String, Double> averageTaskTime = getAverageTaskTime(funnel);
         Map<String, Double> taskRetries = taskRetries(funnel);
         List<Map<String, String>> tasksAssigned = getTasksAssigned(funnel);

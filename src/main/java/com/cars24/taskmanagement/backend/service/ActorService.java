@@ -63,7 +63,7 @@ public interface ActorService {
 
     Map<String, Double[]> getSystemTaskDuration(String funnel);
 
-    public List<Map<String, Object>> getTasksSortedByRetries(String id);
+    public Map<String, Object> getTasksSortedByRetries(String id);
 
     void getSystemApplications(String funnel, int days);
 
