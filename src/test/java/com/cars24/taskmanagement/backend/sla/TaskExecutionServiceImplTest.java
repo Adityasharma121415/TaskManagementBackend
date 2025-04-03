@@ -132,7 +132,7 @@ public class TaskExecutionServiceImplTest {
         ArrayList<SubTaskEntity> conversionList = new ArrayList<>();
         SubTaskEntity existingSubTask = new SubTaskEntity(taskId, createdAt);
 
-        existingSubTask.updateStatus("COMPLETED", firstUpdatedAt);
+        existingSubTask.updateStatus("COMPLETED", firstUpdatedAt, false);
         conversionList.add(existingSubTask);
         existingEntity.setConversion(conversionList);
 

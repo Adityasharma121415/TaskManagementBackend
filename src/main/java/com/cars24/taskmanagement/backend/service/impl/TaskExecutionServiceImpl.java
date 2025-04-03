@@ -20,6 +20,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class TaskExecutionServiceImpl implements TaskExecutionService {
     private final TaskExecutionTimeRepository taskExecutionTimeRepository;
+    boolean flag = false;
 
 //    @Override
 //    public List<TaskExecutionEntity> findAll() {
@@ -142,7 +143,14 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
                     });
 
 
-            subTaskEntity.updateStatus(status, updatedAt);
+            subTaskEntity.updateStatus(status, updatedAt,flag);
+            if(flag == true) {
+                flag = false;
+            }
+            if(status.equalsIgnoreCase("SENDBACK")) {
+                flag = true;
+            }
+
             taskTimeEntity.setRecordDate(updatedAt);
 
 

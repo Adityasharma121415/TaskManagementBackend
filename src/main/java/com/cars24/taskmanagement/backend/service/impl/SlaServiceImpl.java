@@ -256,17 +256,21 @@ public class SlaServiceImpl implements SlaService {
     // Updated computeTaskDistributions using quantile-based thresholds with a 10% tolerance.
     private Map<String, Map<String, SlaResponse.Distribution>> computeTaskDistributions(List<TaskExecutionTimeEntity> executions) {
         Map<String, List<TaskDurationRecord>> taskRecords = new HashMap<>();
+
         for (TaskExecutionTimeEntity execution : executions) {
             String appId = execution.getApplicationId();
             Map<String, List<SubTaskEntity>> funnels = getFunnels(execution);
+
             for (Map.Entry<String, List<SubTaskEntity>> entry : funnels.entrySet()) {
                 for (SubTaskEntity task : entry.getValue()) {
                     taskRecords.computeIfAbsent(task.getTaskId(), k -> new ArrayList<>())
-                            .add(new TaskDurationRecord(appId, task.getDuration()));
+                            .add(new TaskDurationRecord(appId, task.getDuration(), task.getStatusoftask())); // ✅ Added statusOfTask
                 }
             }
         }
+
         Map<String, Map<String, SlaResponse.Distribution>> result = new HashMap<>();
+
         for (Map.Entry<String, List<TaskDurationRecord>> entry : taskRecords.entrySet()) {
             String taskId = entry.getKey();
             List<TaskDurationRecord> records = entry.getValue();
@@ -281,25 +285,24 @@ public class SlaServiceImpl implements SlaService {
             long globalMax = durations.get(durations.size() - 1);
             Map<String, SlaResponse.Distribution> buckets = new LinkedHashMap<>();
 
-            // If there's no variation, assign all records to a single bucket.
             if (globalMin == globalMax) {
                 String rangeKey = formatRange(globalMin, globalMax);
                 SlaResponse.Distribution dist = new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>());
+
                 for (TaskDurationRecord rec : records) {
                     dist.setCount(dist.getCount() + 1);
                     dist.getApplicationIds().add(rec.applicationId);
+                    dist.getApplicationStatusMap().put(rec.applicationId, rec.statusOfTask); // ✅ Store status in map
                 }
+
                 buckets.put(rangeKey, dist);
             } else {
-                // Compute the 30th and 70th percentiles for this task's durations.
                 long p30 = getPercentile(durations, 30);
                 long p70 = getPercentile(durations, 70);
 
-                // Calculate tolerance for the boundaries (10% of the respective bucket widths)
                 double tolLower = (p30 - globalMin) * 0.1;
                 double tolUpper = (globalMax - p70) * 0.1;
 
-                // Define bucket keys based on the dynamic thresholds.
                 String lowerRangeKey = formatRange(globalMin, p30);
                 String middleRangeKey = formatRange(p30, p70);
                 String upperRangeKey = formatRange(p70, globalMax);
@@ -308,39 +311,45 @@ public class SlaServiceImpl implements SlaService {
                 buckets.put(middleRangeKey, new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>()));
                 buckets.put(upperRangeKey, new SlaResponse.Distribution(0, new ArrayList<>(), new LinkedHashMap<>()));
 
-                // Bucket each record based on its duration with tolerance adjustments.
                 for (TaskDurationRecord rec : records) {
                     if (rec.duration <= p30 || (rec.duration > p30 && rec.duration - p30 <= tolLower)) {
                         SlaResponse.Distribution d = buckets.get(lowerRangeKey);
                         d.setCount(d.getCount() + 1);
                         d.getApplicationIds().add(rec.applicationId);
+                        d.getApplicationStatusMap().put(rec.applicationId, rec.statusOfTask);
                     } else if (rec.duration < p70 && (p70 - rec.duration <= tolUpper)) {
                         SlaResponse.Distribution d = buckets.get(middleRangeKey);
                         d.setCount(d.getCount() + 1);
                         d.getApplicationIds().add(rec.applicationId);
+                        d.getApplicationStatusMap().put(rec.applicationId, rec.statusOfTask);
                     } else if (rec.duration < p70) {
                         SlaResponse.Distribution d = buckets.get(middleRangeKey);
                         d.setCount(d.getCount() + 1);
                         d.getApplicationIds().add(rec.applicationId);
+                        d.getApplicationStatusMap().put(rec.applicationId, rec.statusOfTask);
                     } else {
                         SlaResponse.Distribution d = buckets.get(upperRangeKey);
                         d.setCount(d.getCount() + 1);
                         d.getApplicationIds().add(rec.applicationId);
+                        d.getApplicationStatusMap().put(rec.applicationId, rec.statusOfTask);
                     }
                 }
             }
 
-            // Trim each bucket's applicationIds list to only the last 100 entries if needed.
-            for (Map.Entry<String, SlaResponse.Distribution> bucketEntry : buckets.entrySet()) {
-                List<String> appIds = bucketEntry.getValue().getApplicationIds();
+            // Trim applicationIds to last 100 entries
+            for (SlaResponse.Distribution distribution : buckets.values()) {
+                List<String> appIds = distribution.getApplicationIds();
                 if (appIds.size() > 100) {
-                    bucketEntry.getValue().setApplicationIds(new ArrayList<>(appIds.subList(appIds.size() - 100, appIds.size())));
+                    distribution.setApplicationIds(new ArrayList<>(appIds.subList(appIds.size() - 100, appIds.size())));
                 }
             }
+
             result.put(taskId, buckets);
         }
+
         return result;
     }
+
 
     private String formatRange(long startMillis, long endMillis) {
         return SlaResponse.formatDuration(startMillis) + " - " + SlaResponse.formatDuration(endMillis);
@@ -387,9 +396,12 @@ public class SlaServiceImpl implements SlaService {
     private static class TaskDurationRecord {
         String applicationId;
         long duration;
-        public TaskDurationRecord(String applicationId, long duration) {
+        String statusOfTask; // ✅ Added field for task status
+
+        public TaskDurationRecord(String applicationId, long duration, String statusOfTask) {
             this.applicationId = applicationId;
             this.duration = duration;
+            this.statusOfTask = statusOfTask; // ✅ Assign the status
         }
     }
 
@@ -408,7 +420,7 @@ public class SlaServiceImpl implements SlaService {
                     allCompletedOrSkipped = false;
                 }
 
-                if (status != null && (status.equalsIgnoreCase("NEW") || status.equalsIgnoreCase("TODO"))) {
+                if (status != null && (status.equalsIgnoreCase("IN_PROGRESS") || status.equalsIgnoreCase("TODO"))) {
                     anyPending = true;
                 }
 
