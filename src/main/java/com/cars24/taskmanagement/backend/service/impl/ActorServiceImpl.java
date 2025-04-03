@@ -706,7 +706,6 @@ public class ActorServiceImpl implements ActorService {
         }
 
         int totalTasksCompleted = getTasksCompleted(funnel);
-        Map<String, Object> fastestAndSlowestTask = getFastestAndSlowestTask(funnel);
         Map<String, Object> tasksSortedByRetries = getTasksSortedByRetries(funnel);
         Map<String, Double> averageTaskTime = getAverageTaskTime(funnel);
         Map<String, Double> taskRetries = taskRetries(funnel);
