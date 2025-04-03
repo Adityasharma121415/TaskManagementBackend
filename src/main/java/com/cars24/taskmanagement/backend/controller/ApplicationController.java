@@ -3,6 +3,7 @@ package com.cars24.taskmanagement.backend.controller;
 import com.cars24.taskmanagement.backend.data.response.ApiResponse;
 import com.cars24.taskmanagement.backend.data.response.applicationDto.ListFunnelGroupResponse;
 import com.cars24.taskmanagement.backend.service.impl.ApplicationServiceImpl;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,12 +13,10 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/applicationLog")
-@CrossOrigin(origins = "http://localhost:5173")
+@RequiredArgsConstructor
 public class ApplicationController {
 
-    @Autowired
-    ApplicationServiceImpl applicationService;
-
+    private final ApplicationServiceImpl applicationService;
 
     @GetMapping("/{applicationId}")
     public ResponseEntity<ApiResponse> getTasksByApplicationId(@PathVariable String applicationId) {

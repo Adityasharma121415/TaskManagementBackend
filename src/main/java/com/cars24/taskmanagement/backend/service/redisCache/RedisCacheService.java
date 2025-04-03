@@ -1,8 +1,8 @@
 package com.cars24.taskmanagement.backend.service.redisCache;
 
 import com.cars24.taskmanagement.backend.constants.FileConstants;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -11,10 +11,10 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class RedisCacheService {
 
-    @Autowired
-    private StringRedisTemplate redisTemplate;
+    private final StringRedisTemplate redisTemplate;
 
     public void storeTaskStartTime(String applicationId, String taskId, String actorId, Instant updatedAt) {
         log.info("RedisCacheService [storeTaskStartTime] {} {} {} {}", applicationId, taskId, actorId, updatedAt);
