@@ -1,10 +1,13 @@
 package com.cars24.taskmanagement.backend.data.response;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 
 @Data
-@RequiredArgsConstructor
+@AllArgsConstructor
+@NoArgsConstructor
 public class ApiResponse {
     private int statusCode;
     private String message;
