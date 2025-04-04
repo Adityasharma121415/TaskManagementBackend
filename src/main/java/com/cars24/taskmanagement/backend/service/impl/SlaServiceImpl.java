@@ -416,7 +416,10 @@ public class SlaServiceImpl implements SlaService {
                 hasTasks = true;
                 String status = task.getStatusoftask();
 
-                if (status == null || !(status.equalsIgnoreCase("COMPLETED") || status.equalsIgnoreCase("SKIPPED"))) {
+                // Corrected logic: mark as false if status is not one of COMPLETED, SKIPPED, or NEW.
+                if (status == null || (!status.equalsIgnoreCase("COMPLETED")
+                        && !status.equalsIgnoreCase("SKIPPED")
+                        && !status.equalsIgnoreCase("NEW"))) {
                     allCompletedOrSkipped = false;
                 }
 
@@ -434,4 +437,5 @@ public class SlaServiceImpl implements SlaService {
         if (allCompletedOrSkipped) return "Approved";
         return "Rejected";
     }
+
 }

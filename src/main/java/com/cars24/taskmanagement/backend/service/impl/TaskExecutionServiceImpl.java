@@ -147,7 +147,7 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
             if(flag == true) {
                 flag = false;
             }
-            if(status.equalsIgnoreCase("SENDBACK")) {
+            if(status.equalsIgnoreCase("COMPLETED") && taskId.equalsIgnoreCase("sendback")) {
                 flag = true;
             }
 
