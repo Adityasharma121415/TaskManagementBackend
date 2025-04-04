@@ -203,7 +203,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                     "updatedAt", latestLog.getUpdatedAt(),
                     "duration", taskMetadata.getOrDefault(latestLog.getTaskId(), new LoanDurationEntity.Task()).getDuration(),
                     "sendbacks", taskMetadata.getOrDefault(latestLog.getTaskId(), new LoanDurationEntity.Task()).getSendbacks(),
-                    "visited", taskMetadata.getOrDefault(latestLog.getTaskId(), new LoanDurationEntity.Task()).getVisited()
+                    "visited", taskMetadata.getOrDefault(latestLog.getTaskId(), new LoanDurationEntity.Task()).getRevisit()
             );
         }
         return null;
@@ -226,7 +226,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         LoanDurationEntity.Task metadata = taskMetadata.getOrDefault(firstLog.getTaskId(), null);
         long duration = metadata != null ? metadata.getDuration() : 0;
         int sendbacks = metadata != null ? metadata.getSendbacks() : 0;
-        int visited = metadata != null ? metadata.getVisited() : 0;
+        int visited = metadata != null ? metadata.getRevisit() : 0;
 
         String targetTaskId = isSendback ? fetchTargetTaskId(firstLog) : null;
         String sourceLoanStage = isSendback ? fetchSourceModule(firstLog) : null;
@@ -265,6 +265,40 @@ public class ApplicationServiceImpl implements ApplicationService {
         return null;
     }
 
+    private Map<String, String> fetchTargetTaskInfo(TaskExecutionLogEntity log) {
+        Map<String, Object> sendbackMetadata = (Map<String, Object>) log.getSendbackMetadata();
+        Map<String, String> taskInfo = new HashMap<>();
+
+        if (sendbackMetadata != null) {
+            // Fetch sourceLoanStage and sourceSubModule
+            String sourceLoanStage = (String) sendbackMetadata.get("sourceLoanStage");
+            String sourceSubModule = (String) sendbackMetadata.get("sourceSubModule");
+
+            // Fetch targetTaskId from sendbackConfigDao
+            if (sendbackMetadata.containsKey("key")) {
+                String sendbackKey = (String) sendbackMetadata.get("key");
+                String targetTaskId = sendbackConfigDao.findBySendbackKey(sendbackKey)
+                        .map(config -> config.getSubReasonList().stream()
+                                .filter(subReason -> sendbackKey.equals(subReason.getSendbackKey()))
+                                .findFirst()
+                                .map(subReason -> subReason.getTargetTaskId())
+                                .orElse(null))
+                        .orElse(null);
+                taskInfo.put("targetTaskId", targetTaskId);
+                taskInfo.put("key",sendbackKey);
+            }
+
+            // Add sourceLoanStage and sourceSubModule if available
+            if (sourceLoanStage != null && sourceSubModule != null) {
+                taskInfo.put("sourceLoanStage", sourceLoanStage);
+                taskInfo.put("sourceSubModule", sourceSubModule);
+
+            }
+        }
+
+        return taskInfo; // Return the map containing all required fields
+    } //gannt chart
+
     private String fetchSourceModule(TaskExecutionLogEntity log) {
         //log.info("[fetchSourceModule] Fetching source module for taskId={}", log.getTaskId());
         Map<String, Object> sendbackMetadata = (Map<String, Object>) log.getSendbackMetadata();
@@ -288,8 +322,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     private TaskDetailsResponse convertToTaskDetails(TaskExecutionLogEntity log) {
-        //log.info("[convertToTaskDetails] Converting task details for taskId={}", log.getTaskId());
-        String targetTaskId = "sendback".equalsIgnoreCase(log.getTaskId()) ? fetchTargetTaskId(log) : null;
+        Map<String, String> taskInfo = "sendback".equalsIgnoreCase(log.getTaskId()) ? fetchTargetTaskInfo(log) : new HashMap<>();
 
         return new TaskDetailsResponse(
                 Optional.ofNullable(log.getFunnel()).orElse(UNKNOWN_FUNNEL),
@@ -297,10 +330,13 @@ public class ApplicationServiceImpl implements ApplicationService {
                 log.getStatus(),
                 log.getUpdatedAt(),
                 log.getTaskId(),
-                targetTaskId,
-                0,
-                0,
+                taskInfo.get("key"),
+                taskInfo.get("targetTaskId"),  // Target Task ID
+                taskInfo.get("sourceLoanStage"), // Source Loan Stage
+                taskInfo.get("sourceSubModule"), // Source SubModule
                 log.getMetadata()
         );
-    }
+    } //gantt chart
+
+
 }

@@ -14,9 +14,10 @@ public class TaskDetailsResponse {
     private String status;
     private Date updatedAt;
     private String taskId;
+    private String key;
     private String targetTaskId;
-    private int sendbacks;
-    private int duration;
+    private String sourceLoanStage;
+    private String sourceSubModule;
     private Map<String, Object> metadata;
 
 }
