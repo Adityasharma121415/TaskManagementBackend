@@ -245,7 +245,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             return sendbackConfigDao.findBySendbackKey(sendbackKey)
                     .map(config -> {
                         if (!config.getSubReasonList().isEmpty()) {
-                            return config.getSubReasonList().get(0).getTargetTaskId();
+                            return config.getSubReasonList().get(0).getTargetTaskIds().getFirst();  //to be changed
                         }
                         return null;
                     })

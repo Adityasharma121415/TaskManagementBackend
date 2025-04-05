@@ -139,6 +139,11 @@ public class SubModuleTaskMapping {
         SUBMODULE_TASK_MAP.put("INIT_CREDIT_FLOW", new HashSet<>(Arrays.asList(
                 "init_credit_flow"
         )));
+
+        SUBMODULE_TASK_MAP.put("ENHANCE_OFFER", new HashSet<>(Arrays.asList(
+                "co_doc_upload","initiate_offer_approval","terms_generation", "co_action_on_terms"
+                ,"co_beneficiary", "additional"
+        )));
     }
 
 

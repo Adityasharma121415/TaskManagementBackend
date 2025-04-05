@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Date;
 
 @Data
-@Document(collection = "sendback_config")
+@Document(collection = "sendback_config_new")
 public class SendbackConfigEntity {
 
     @Id
@@ -28,7 +28,7 @@ public class SendbackConfigEntity {
         private String sendbackKey;
         private String targetFunnel;
         private String targetLoanStage;
-        private String targetTaskId;
+        private List<String> targetTaskIds;      // Updated to support multiple target task IDs
         private boolean rejectionAllowed;
     }
 }
