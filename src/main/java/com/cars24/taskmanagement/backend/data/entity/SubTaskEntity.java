@@ -41,6 +41,9 @@ public class SubTaskEntity {
             case "IN_PROGRESS":
                 this.inprogress_time = updatedAt;
                 this.visited++;
+                if(this.statusoftask.equalsIgnoreCase("TODO")) {
+                    this.duration += abs(updatedAt.toEpochMilli() - this.todo_time.toEpochMilli());
+                }
                 break;
 
             case "COMPLETED":
@@ -73,8 +76,11 @@ public class SubTaskEntity {
             case "SENDBACK":
                 this.sendback_time = updatedAt;
 
-                if (this.todo_time != null && this.visited > 1) {
+                if (this.todo_time != null ) {
                     this.duration += abs(updatedAt.toEpochMilli() - this.todo_time.toEpochMilli()) ;
+                }
+                if (this.inprogress_time != null ) {
+                    this.duration += abs(updatedAt.toEpochMilli() - this.inprogress_time.toEpochMilli()) ;
                 }
                 else if (this.new_time != null && this.visited == 1) {
                     this.duration += abs(updatedAt.toEpochMilli() - this.new_time.toEpochMilli()) ;
@@ -83,6 +89,14 @@ public class SubTaskEntity {
 
             case "FAILED":
                 this.visited = Math.max(0, this.visited - 1);
+                if(this.statusoftask.equalsIgnoreCase("TODO") ) {
+                    this.duration += abs(updatedAt.toEpochMilli() - this.todo_time.toEpochMilli());
+                    this.revisit++;
+                }
+                if(this.statusoftask.equalsIgnoreCase("IN_PROGRESS") ) {
+                    this.duration += abs(updatedAt.toEpochMilli() - this.inprogress_time.toEpochMilli());
+                    this.revisit++;
+                }
                 break;
 
             case "NEW":

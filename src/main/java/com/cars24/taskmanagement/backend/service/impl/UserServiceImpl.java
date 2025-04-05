@@ -21,7 +21,7 @@ import java.util.Optional;
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtUtil jwtUtil;
+   private final JwtUtil jwtUtil;
 
     @Override
     public ApiResponse registerUser(SignUpRequest user) {

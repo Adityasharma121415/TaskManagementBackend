@@ -95,7 +95,7 @@ public class TaskExecutionListener {
             }
         } catch (Exception e) {
             log.error("Error processing change stream event", e);
-            Thread.currentThread().interrupt();
+//            Thread.currentThread().interrupt();
         } finally {
             if (isLocked) {
                 lock.unlock();

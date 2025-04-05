@@ -4,7 +4,7 @@ import com.cars24.taskmanagement.backend.data.requests.LoginRequest;
 import com.cars24.taskmanagement.backend.data.requests.SignUpRequest;
 import com.cars24.taskmanagement.backend.data.response.ApiResponse;
 import com.cars24.taskmanagement.backend.service.UserService;
-import com.cars24.taskmanagement.backend.utils.JwtUtil;
+//import com.cars24.taskmanagement.backend.utils.JwtUtil;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -25,7 +25,7 @@ public class UserController {
     private static final String APPUSER = "UserController";
     private static final String TOKEN_KEY = "token";
 
-    private final JwtUtil jwtUtil;
+  //  private final JwtUtil jwtUtil;
     private final UserService userService;
 
 
