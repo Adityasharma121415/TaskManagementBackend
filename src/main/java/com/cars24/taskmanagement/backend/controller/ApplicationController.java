@@ -2,6 +2,7 @@ package com.cars24.taskmanagement.backend.controller;
 
 import com.cars24.taskmanagement.backend.data.response.ApiResponse;
 import com.cars24.taskmanagement.backend.data.response.applicationDto.ListFunnelGroupResponse;
+import com.cars24.taskmanagement.backend.service.impl.ApplicationGanntService;
 import com.cars24.taskmanagement.backend.service.impl.ApplicationServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +18,7 @@ import java.util.Map;
 public class ApplicationController {
 
     private final ApplicationServiceImpl applicationService;
+    private final ApplicationGanntService applicationGanntService;
 
     @GetMapping("/{applicationId}")
     public ResponseEntity<ApiResponse> getTasksByApplicationId(@PathVariable String applicationId) {
@@ -32,7 +34,7 @@ public class ApplicationController {
 
     @GetMapping("/graph/{applicationId}")
     public ResponseEntity<ApiResponse> getTasksByApplicationIdDC(@PathVariable String applicationId) {
-        ListFunnelGroupResponse listFunnelGroupResponse = applicationService.getTasksByApplicationId(applicationId);
+        ListFunnelGroupResponse listFunnelGroupResponse = applicationGanntService.getTasksByApplicationId(applicationId);
         ApiResponse response = new ApiResponse();
         response.setStatusCode(HttpStatus.OK.value());
         response.setSuccess(true);

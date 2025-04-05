@@ -3,6 +3,7 @@ package com.cars24.taskmanagement.backend.ActivityLog;
 import com.cars24.taskmanagement.backend.controller.ApplicationController;
 import com.cars24.taskmanagement.backend.data.response.ApiResponse;
 import com.cars24.taskmanagement.backend.data.response.applicationDto.*;
+import com.cars24.taskmanagement.backend.service.impl.ApplicationGanntService;
 import com.cars24.taskmanagement.backend.service.impl.ApplicationServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,8 @@ class ApplicationControllerTest {
     @Mock
     private ApplicationServiceImpl applicationService;
 
+    @Mock
+    private ApplicationGanntService applicationGanntService;
     @InjectMocks
     private ApplicationController applicationController;
 
@@ -95,7 +98,7 @@ class ApplicationControllerTest {
         List<FunnelGroupResponse> funnelGroupResponses = Arrays.asList(funnelGroup1, funnelGroup2);
         ListFunnelGroupResponse mockResponse = new ListFunnelGroupResponse(funnelGroupResponses);
 
-        when(applicationService.getTasksByApplicationId(applicationId)).thenReturn(mockResponse);
+        when(applicationGanntService.getTasksByApplicationId(applicationId)).thenReturn(mockResponse);
 
         // Act
         ResponseEntity<ApiResponse> responseEntity = applicationController.getTasksByApplicationIdDC(applicationId);
@@ -108,6 +111,6 @@ class ApplicationControllerTest {
         assertEquals("APPUSER200", responseEntity.getBody().getService());
         assertEquals(mockResponse, responseEntity.getBody().getData());
 
-        verify(applicationService, times(1)).getTasksByApplicationId(applicationId);
+        verify(applicationGanntService, times(1)).getTasksByApplicationId(applicationId);
     }
 }
