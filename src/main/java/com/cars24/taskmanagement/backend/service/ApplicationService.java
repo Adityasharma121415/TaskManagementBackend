@@ -10,5 +10,5 @@ public interface ApplicationService {
 
     Map<String, Object> getTasksGroupedByFunnel(String applicationId);
 
-    ListFunnelGroupResponse getTasksByApplicationId(String applicationId);
+//    ListFunnelGroupResponse getTasksByApplicationId(String applicationId);
 }

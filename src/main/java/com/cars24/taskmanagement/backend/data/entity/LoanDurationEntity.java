@@ -28,6 +28,6 @@ public class LoanDurationEntity {
         private String updatedAt;
         private int sendbacks;
         private long duration;
-        private int visited;
+        private int revisit;      //replaced by visited
     }
 }

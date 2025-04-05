@@ -3,17 +3,12 @@ package com.cars24.taskmanagement.backend.data.dao.impl;
 import com.cars24.taskmanagement.backend.data.dao.ApplicationDao;
 import com.cars24.taskmanagement.backend.data.entity.LoanDurationEntity;
 import com.cars24.taskmanagement.backend.data.entity.TaskExecutionLogEntity;
-
 import com.cars24.taskmanagement.backend.data.repository.LoanDurationRepository;
 import com.cars24.taskmanagement.backend.data.repository.TaskExecutionLogRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor

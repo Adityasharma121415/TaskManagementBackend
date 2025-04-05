@@ -27,17 +27,6 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final ApplicationDao taskExecutionDao;
     private final SendbackConfigDao sendbackConfigDao;
 
-    @Override
-    public ListFunnelGroupResponse getTasksByApplicationId(String applicationId) {
-        log.info("[getTasksByApplicationId] Starting to fetch tasks for applicationId={}", applicationId);
-        List<TaskExecutionLogEntity> sortedTasks = taskExecutionDao.findTasksByApplicationIdSortedByUpdatedAt(applicationId);
-        List<TaskDetailsResponse> taskDetailsResponseList = sortedTasks.stream()
-                .map(this::convertToTaskDetails)
-                .collect(Collectors.toList());
-        List<FunnelGroupResponse> funnelGroupResponses = groupTasksByFunnel(taskDetailsResponseList);
-        log.info("[getTasksByApplicationId] Completed processing for applicationId={}", applicationId);
-        return new ListFunnelGroupResponse(funnelGroupResponses);
-    }
 
     @Override
     public Map<String, Object> getTasksGroupedByFunnel(String applicationId) {
@@ -203,7 +192,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                     "updatedAt", latestLog.getUpdatedAt(),
                     "duration", taskMetadata.getOrDefault(latestLog.getTaskId(), new LoanDurationEntity.Task()).getDuration(),
                     "sendbacks", taskMetadata.getOrDefault(latestLog.getTaskId(), new LoanDurationEntity.Task()).getSendbacks(),
-                    "visited", taskMetadata.getOrDefault(latestLog.getTaskId(), new LoanDurationEntity.Task()).getVisited()
+                    "visited", taskMetadata.getOrDefault(latestLog.getTaskId(), new LoanDurationEntity.Task()).getRevisit()
             );
         }
         return null;
@@ -226,7 +215,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         LoanDurationEntity.Task metadata = taskMetadata.getOrDefault(firstLog.getTaskId(), null);
         long duration = metadata != null ? metadata.getDuration() : 0;
         int sendbacks = metadata != null ? metadata.getSendbacks() : 0;
-        int visited = metadata != null ? metadata.getVisited() : 0;
+        int visited = metadata != null ? metadata.getRevisit() : 0;
 
         String targetTaskId = isSendback ? fetchTargetTaskId(firstLog) : null;
         String sourceLoanStage = isSendback ? fetchSourceModule(firstLog) : null;
@@ -256,7 +245,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             return sendbackConfigDao.findBySendbackKey(sendbackKey)
                     .map(config -> {
                         if (!config.getSubReasonList().isEmpty()) {
-                            return config.getSubReasonList().get(0).getTargetTaskId();
+                            return config.getSubReasonList().get(0).getTargetTaskIds().getFirst();  //to be changed
                         }
                         return null;
                     })
@@ -264,6 +253,8 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
         return null;
     }
+
+
 
     private String fetchSourceModule(TaskExecutionLogEntity log) {
         //log.info("[fetchSourceModule] Fetching source module for taskId={}", log.getTaskId());
@@ -277,30 +268,9 @@ public class ApplicationServiceImpl implements ApplicationService {
         return sendbackMetadata != null ? (String) sendbackMetadata.get("sourceSubModule") : null;
     }
 
-    private List<FunnelGroupResponse> groupTasksByFunnel(List<TaskDetailsResponse> sortedTasks) {
-        log.info("[groupTasksByFunnel] Grouping {} tasks by funnel", sortedTasks.size());
-        Map<String, FunnelGroupResponse> funnelMap = new LinkedHashMap<>();
-        for (TaskDetailsResponse task : sortedTasks) {
-            funnelMap.computeIfAbsent(task.getFunnel(), key -> new FunnelGroupResponse(task.getFunnel(), new ArrayList<>()))
-                    .getTasks().add(task);
-        }
-        return new ArrayList<>(funnelMap.values());
-    }
 
-    private TaskDetailsResponse convertToTaskDetails(TaskExecutionLogEntity log) {
-        //log.info("[convertToTaskDetails] Converting task details for taskId={}", log.getTaskId());
-        String targetTaskId = "sendback".equalsIgnoreCase(log.getTaskId()) ? fetchTargetTaskId(log) : null;
 
-        return new TaskDetailsResponse(
-                Optional.ofNullable(log.getFunnel()).orElse(UNKNOWN_FUNNEL),
-                log.getActorId(),
-                log.getStatus(),
-                log.getUpdatedAt(),
-                log.getTaskId(),
-                targetTaskId,
-                0,
-                0,
-                log.getMetadata()
-        );
-    }
+
+
+
 }
