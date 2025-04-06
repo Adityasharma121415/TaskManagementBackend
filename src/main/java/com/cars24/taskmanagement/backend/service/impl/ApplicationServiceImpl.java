@@ -87,7 +87,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     private Map<String, LoanDurationEntity.Task> extractTaskMetadata(LoanDurationEntity loanDurationEntity) {
         log.info("[extractTaskMetadata] Extracting task metadata");
         return Optional.ofNullable(loanDurationEntity)
-                .map(ld -> Stream.of(ld.getSourcing(), ld.getCredit(), ld.getConversion(), ld.getFulfillment())
+                .map(ld -> Stream.of(ld.getSourcing(), ld.getCredit(), ld.getConversion(), ld.getFulfillment(),ld.getRisk(),ld.getRto(),ld.getDisbursal())
                         .filter(Objects::nonNull)
                         .flatMap(Collection::stream)
                         .collect(Collectors.toMap(

@@ -18,6 +18,9 @@ public class LoanDurationEntity {
     private List<Task> credit;
     private List<Task> conversion;
     private List<Task> fulfillment;
+    private List<Task> risk;
+    private List<Task> rto;
+    private List<Task> disbursal;
 
 
 
