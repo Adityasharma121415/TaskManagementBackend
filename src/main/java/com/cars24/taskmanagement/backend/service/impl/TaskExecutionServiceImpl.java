@@ -107,7 +107,7 @@ public class TaskExecutionServiceImpl implements TaskExecutionService {
                     if (taskTimeEntity.getConversion() == null) taskTimeEntity.setConversion(new ArrayList<>());
                     subTaskEntityList = taskTimeEntity.getConversion();
                     break;
-                case "fulfillment":
+                case "fulfilment":
                     if (taskTimeEntity.getFulfillment() == null) taskTimeEntity.setFulfillment(new ArrayList<>());
                     subTaskEntityList = taskTimeEntity.getFulfillment();
                     break;

@@ -76,13 +76,13 @@ public class SubTaskEntity {
             case "SENDBACK":
                 this.sendback_time = updatedAt;
 
-                if (this.todo_time != null ) {
+                if (this.todo_time != null && this.statusoftask.equalsIgnoreCase("TODO") ) {
                     this.duration += abs(updatedAt.toEpochMilli() - this.todo_time.toEpochMilli()) ;
                 }
-                if (this.inprogress_time != null ) {
+                if (this.inprogress_time != null && this.statusoftask.equalsIgnoreCase("IN_PROGRESS")) {
                     this.duration += abs(updatedAt.toEpochMilli() - this.inprogress_time.toEpochMilli()) ;
                 }
-                else if (this.new_time != null && this.visited == 1) {
+                else if (this.new_time != null && this.visited == 1 && this.statusoftask.equalsIgnoreCase("NEW")) {
                     this.duration += abs(updatedAt.toEpochMilli() - this.new_time.toEpochMilli()) ;
                 }
                 break;
@@ -104,7 +104,15 @@ public class SubTaskEntity {
                 break;
 
             case "SKIPPED":
-                this.duration += abs(updatedAt.toEpochMilli() - this.new_time.toEpochMilli()) ;
+                if(this.statusoftask.equalsIgnoreCase("NEW")) {
+                    this.duration += abs(updatedAt.toEpochMilli() - this.new_time.toEpochMilli());
+                }
+                if(this.statusoftask.equalsIgnoreCase("TODO")) {
+                    this.duration += abs(updatedAt.toEpochMilli() - this.todo_time.toEpochMilli());
+                }
+                if(this.statusoftask.equalsIgnoreCase("IN_PROGRESS")) {
+                    this.duration += abs(updatedAt.toEpochMilli() - this.inprogress_time.toEpochMilli());
+                }
                 break;
 
         }
