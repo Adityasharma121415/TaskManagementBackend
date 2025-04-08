@@ -29,6 +29,10 @@ public class SlaController {
     @GetMapping("/time/{channel}/{days}/{appStatusFilter}")
     public SlaResponse getSlaByChannelAndStatus(@PathVariable String channel, @PathVariable int days, @PathVariable  String appStatusFilter) {
         log.info("Received request for SLA metrics of channel: {} for last {} days with status: {}", channel, days, appStatusFilter);
+        if ("ALL".equalsIgnoreCase(channel)) {
+            return slaService.getSlaMetricsForAllChannels(days, appStatusFilter);
+        }
+
         return slaService.getSlaMetricsByChannel(channel, days, appStatusFilter);
     }
 }

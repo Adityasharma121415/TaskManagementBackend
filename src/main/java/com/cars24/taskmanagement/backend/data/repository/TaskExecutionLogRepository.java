@@ -22,6 +22,7 @@ public interface TaskExecutionLogRepository extends MongoRepository<TaskExecutio
     List<TaskExecutionLogEntity> findByApplicationId(String applicationId);
 
     // Custom query to find tasks by taskIds, status, and updatedAt > afterTime
-    @Query("{ 'taskId': { $in: ?0 }, 'status': ?1, 'updatedAt': { $gt: ?2 } }")
-    List<TaskExecutionLogEntity> findTasksByTaskIdsAndStatusAfterTime(Set<String> taskIds, String status, Date afterTime);
+    @Query("{ 'taskId': { $in: ?0 }, 'status': ?1, 'applicationId': ?2, 'updatedAt': { $gt: ?3 } }")
+    List<TaskExecutionLogEntity> findTasksByTaskIdsAndStatusAndApplicationIdAfterTime(
+            Set<String> taskIds, String status, String applicationId, Date afterTime);
 }

@@ -71,6 +71,60 @@ public class SlaServiceImpl implements SlaService {
         );
     }
 
+    public SlaResponse getSlaMetricsForAllChannels(Integer days, String appStatusFilter) {
+        List<String> channels = Arrays.asList("D2C", "C2C", "DCF", "BT", "LAC");
+        List<TaskExecutionTimeEntity> allExecutions = new ArrayList<>();
+
+        // Retrieve tasks for each channel and aggregate them
+        for (String channel : channels) {
+            allExecutions.addAll(slaDao.getTasksByChannel(channel));
+        }
+
+        if (days != null && days > 0) {
+            Instant cutoff = Instant.now().minus(days, ChronoUnit.DAYS);
+            allExecutions = allExecutions.stream()
+                    .filter(e -> e.getRecordDate() != null && e.getRecordDate().isAfter(cutoff))
+                    .collect(Collectors.toList());
+            log.info("Filtered {} records for ALL channels within last {} days", allExecutions.size(), days);
+        }
+
+        if (appStatusFilter != null && !appStatusFilter.trim().isEmpty()) {
+            allExecutions = allExecutions.stream()
+                    .filter(e -> determineApplicationStatus(e).equalsIgnoreCase(appStatusFilter))
+                    .collect(Collectors.toList());
+            log.info("Filtered {} records for ALL channels with overall status: {}", allExecutions.size(), appStatusFilter);
+        }
+
+        if (allExecutions.isEmpty()) {
+            throw new SlaException("No data found for ALL channels" +
+                    (days != null && days > 0 ? " in the past " + days + " days" : "") +
+                    (!appStatusFilter.trim().isEmpty() ? " with status " + appStatusFilter : ""));
+        }
+
+        log.info("Processing {} execution records for ALL channels", allExecutions.size());
+
+        Map<String, List<Long>> taskDurations = new LinkedHashMap<>();
+        Map<String, List<Long>> taskSendbacks = new LinkedHashMap<>();
+        Map<String, Set<String>> funnelToTaskMapping = new LinkedHashMap<>();
+
+        processExecutions(allExecutions, taskDurations, taskSendbacks, funnelToTaskMapping);
+
+        Map<String, String> avgTaskTimes = calculateAverageTimes(taskDurations);
+        Map<String, String> avgFunnelTimes = calculateAverageFunnelTimes(funnelToTaskMapping, taskDurations);
+        long totalTAT = calculateTotalTAT(avgFunnelTimes);
+        Map<String, Long> sendbackCounts = calculateSendbackCounts(taskSendbacks);
+
+        Map<String, SlaResponse.Distribution> tatDistribution = computeDynamicTatDistribution(allExecutions);
+        Map<String, Map<String, SlaResponse.Distribution>> taskDistributions = computeTaskDistributions(allExecutions);
+
+        return new SlaResponse(
+                initializeFunnels(avgFunnelTimes, funnelToTaskMapping, avgTaskTimes, sendbackCounts),
+                SlaResponse.formatDuration(totalTAT),
+                tatDistribution,
+                taskDistributions
+        );
+    }
+
     private void processExecutions(List<TaskExecutionTimeEntity> executions,
                                    Map<String, List<Long>> taskDurations,
                                    Map<String, List<Long>> taskSendbacks,
