@@ -33,7 +33,9 @@ public interface ActorService {
 
     Map<String, Double> thresholdTaskTimeAcrossApplications();
 
-    public int getTasksCompleted(String actorId);
+    List<Integer> getTasksAndLeads(String id);
+
+    Double averageApplicationTime(String id);
 
     public List<Map<String, String>> getTasksAssigned(String actorId);
 
