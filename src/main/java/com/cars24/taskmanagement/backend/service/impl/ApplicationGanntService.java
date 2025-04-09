@@ -144,11 +144,23 @@ public class ApplicationGanntService {
             logger.info("[fetchTargetTaskInfo] Source Task IDs for SubModule {}: {}", sourceSubModule, sourceTaskIds);
 
             if (sourceTaskIds != null && !sourceTaskIds.isEmpty()) {
-                // Query the database for actual source tasks
-                List<TaskExecutionLogEntity> sourceTasks = taskExecutionLogRepository.findTasksByTaskIdsAndStatusAndApplicationIdAfterTime(
-                        sourceTaskIds, "SENDBACK", log.getApplicationId(), initiatedAt
+                // Calculate the end time (initiatedAt + 2 seconds)
+                Calendar calendar = Calendar.getInstance();
+                calendar.setTime(initiatedAt);
+                calendar.add(Calendar.SECOND, 2);
+                Date endTime = calendar.getTime();
+
+                // Query the database for actual source tasks within the time range
+                List<TaskExecutionLogEntity> sourceTasks = taskExecutionLogRepository.findTasksByTaskIdsStatusAndApplicationIdWithinTimeRange(
+                        sourceTaskIds, "SENDBACK", log.getApplicationId(), initiatedAt, endTime
                 );
-                logger.info("[fetchTargetTaskInfo] Found {} source tasks with status 'sendback' after initiatedAt={}", sourceTasks.size(), initiatedAt);
+                logger.info("[fetchTargetTaskInfo] Found {} source tasks with status 'sendback' between {} and {}", sourceTasks.size(), initiatedAt, endTime);
+
+                // Collect the task IDs that satisfy the condition
+                List<String> actualSourceTaskIds = sourceTasks.stream()
+                        .map(TaskExecutionLogEntity::getTaskId)
+                        .collect(Collectors.toList());
+                logger.info("[fetchTargetTaskInfo] Actual Source Task IDs: {}", actualSourceTaskIds);
 
                 // Select the most recent source task based on updatedAt
                 TaskExecutionLogEntity latestSourceTask = sourceTasks.stream()
