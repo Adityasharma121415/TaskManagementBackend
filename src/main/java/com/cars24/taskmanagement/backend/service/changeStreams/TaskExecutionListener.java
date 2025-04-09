@@ -10,10 +10,12 @@ import org.bson.Document;
 import org.bson.BsonDocument;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
+
 import java.time.Instant;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,10 +26,13 @@ import java.util.concurrent.Executors;
 public class TaskExecutionListener {
 
     private final MongoTemplate mongoTemplate;
-    private final TaskExecutionServiceImpl timeService;
     private final RedissonClient redissonClient;
     private ExecutorService executorService;
     private static final String RESUME_TOKEN_KEY = "resumeToken:task_execution";
+
+    // Inject the RabbitMQ template (configured in RabbitMQConfig)
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
 
     @PostConstruct
     public void startChangeStream() {
@@ -84,18 +89,36 @@ public class TaskExecutionListener {
 
                 Instant createdAt = getInstant(fullDocument, "createdAt");
                 Instant updatedAt = getInstant(fullDocument, "updatedAt");
-                Instant eventTime = status.equalsIgnoreCase("NEW") ? createdAt : updatedAt;
 
-                timeService.updateTaskExecutionTime(taskId, status, createdAt, updatedAt, funnel, applicationId, entityId, channel);
+                // Create and send a payload to RabbitMQ
+                TaskExecutionPayload payload = new TaskExecutionPayload();
+                payload.setTaskId(taskId);
+                payload.setStatus(status);
+                payload.setCreatedAt(createdAt);
+                payload.setUpdatedAt(updatedAt);
+                payload.setFunnel(funnel);
+                payload.setApplicationId(applicationId);
+                payload.setEntityId(entityId);
+                payload.setChannel(channel);
 
-                // Store the latest resume token after processing
+                rabbitTemplate.convertAndSend(
+                        "taskExecutionExchange",      // Exchange name from RabbitMQConfig
+                        "priorityRoutingKey",         // Routing key from RabbitMQConfig
+                        payload,
+                        message -> {
+                            // Optionally set a priority level
+                            message.getMessageProperties().setPriority(5);
+                            return message;
+                        }
+                );
+
+                // Store the resume token after successfully publishing.
                 storeResumeToken(changeStreamDocument.getResumeToken());
             } else {
                 log.info("TaskExecutionListener [processChangeStreamDocument] Unable to acquire lock for task: {}", fullDocument.getObjectId("_id").toHexString());
             }
         } catch (Exception e) {
             log.error("Error processing change stream event", e);
-//            Thread.currentThread().interrupt();
         } finally {
             if (isLocked) {
                 lock.unlock();
