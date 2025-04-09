@@ -34,7 +34,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/signup", "/api/login", "/SLAMonitoring/time/{channel}/{days}/{appStatusFilter}/{taskStatusFilter}").permitAll()
+                        .requestMatchers("/api/signup", "/api/login","/SLAMonitoring/time/{channel}/{days}/{appStatusFilter}").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

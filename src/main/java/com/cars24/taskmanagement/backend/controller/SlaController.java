@@ -17,15 +17,18 @@ public class SlaController {
 
     private final SlaServiceImpl slaService;
 
+//    @GetMapping("/time/{channel}")
+//    public SlaResponse getSlaByChannel(@PathVariable String channel) {
+//        log.info("Received request for SLA metrics of channel: {}", channel);
+//        return slaService.getSlaMetricsByChannel(channel, -1, "");
+//    }
 
-    @GetMapping("/time/{channel}/{days}/{appStatusFilter}/{taskStatusFilter}")
-    public SlaResponse getSlaByChannelAndStatus(
-            @PathVariable String channel,
-            @PathVariable int days,
-            @PathVariable String appStatusFilter,
-            @PathVariable String taskStatusFilter) {
-        log.info("Received request for SLA metrics of channel: {} for last {} days with overall status: {} and task status filter: {}",
-                channel, days, appStatusFilter, taskStatusFilter);
-        return slaService.getSlaMetricsByChannel(channel, days, appStatusFilter, taskStatusFilter);
+    @GetMapping("/time/{channel}/{days}/{appStatusFilter}")
+    public SlaResponse getSlaByChannelAndStatus(@PathVariable String channel,
+                                                @PathVariable int days,
+                                                @PathVariable String appStatusFilter) {
+        log.info("Received request for SLA metrics of channel: {} for last {} days with status: {}", channel, days, appStatusFilter);
+        return slaService.getSlaMetricsByChannel(channel, days, appStatusFilter);
     }
+
 }

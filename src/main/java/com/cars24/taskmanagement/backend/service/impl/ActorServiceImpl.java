@@ -212,18 +212,22 @@ public class ActorServiceImpl implements ActorService {
         Map<String, Integer> taskVisitCounts = new HashMap<>();
         Map<String, Object> result = new HashMap<>();
 
-        int totalApplications = 0;
+        int retriedApplications = 0;
+        boolean newApplication = true;
 
         for(ActorEntity document : sourceDocuments){
             if (id.matches("\\d+") && !document.getActorId().equals(id)) continue;
             if (!id.matches("\\d+") && !document.getFunnel().equals(id)) continue;
 
-            totalApplications += 1;
-
             for(TaskEntity task : document.getTasks()){
+                if(task.getVisited() > 1 && newApplication == true){
+                    retriedApplications += 1;
+                    newApplication = false;
+                }
                 taskVisitCounts.put(task.getTaskId(),
                         taskVisitCounts.getOrDefault(task.getTaskId(), 0) + task.getVisited());
             }
+            newApplication = true;
         }
 
         List<Map<String, Object>> sortedTasks = taskVisitCounts.entrySet().stream()
@@ -236,7 +240,7 @@ public class ActorServiceImpl implements ActorService {
                 })
                 .collect(Collectors.toList());
 
-        result.put("number_of_applications", totalApplications);
+        result.put("retried_applications", retriedApplications);
         result.put("tasks", sortedTasks);
         return result;
     }
@@ -468,35 +472,76 @@ public class ActorServiceImpl implements ActorService {
     }
 
     @Override
-    public int getTasksCompleted(String id) {
+    public List<Integer> getTasksAndLeads(String id) {
         log.info("ActorServiceImpl [getTasksCompleted] {}", id);
 
+        List<Integer> response = new ArrayList<>();
+
         int tasksCompleted = 0;
+        int pendingTasks = 0;
+        int totalApplications = 0;
 
         if(id.matches("\\d+")){
             for(ActorEntity document : actorDocuments){
+                totalApplications += 1;
                 List<TaskEntity> tasks = document.getTasks();
                 for(TaskEntity task : tasks){
                     String status = task.getStatus();
                     if(status.equals("COMPLETED")){
                         tasksCompleted += 1;
+                    }
+                    else if(status.equals("TODO") || status.equals("IN_PROGRESS") || status.equals("FAILED")){
+                        pendingTasks += 1;
                     }
                 }
             }
         }
         else{
             for(ActorEntity document : systemDocuments){
+                totalApplications += 1;
                 List<TaskEntity> tasks = document.getTasks();
                 for(TaskEntity task : tasks){
                     String status = task.getStatus();
                     if(status.equals("COMPLETED")){
                         tasksCompleted += 1;
                     }
+                    else if(status.equals("TODO") || status.equals("IN_PROGRESS") || status.equals("FAILED")){
+                        pendingTasks += 1;
+                    }
                 }
             }
         }
 
-        return tasksCompleted;
+        response.add(tasksCompleted);
+        response.add(pendingTasks);
+        response.add(totalApplications);
+
+        return response;
+    }
+
+    @Override
+    public Double averageApplicationTime(String id){
+        log.info("ActorServiceImpl [averageApplicationTime] {}",id);
+
+        Double average = 0.0;
+
+        int totalApplications = getTasksAndLeads(id).get(2);
+        Long totalDuration = 0L;
+
+        if(id.matches("\\d+")){
+            for(ActorEntity document : actorDocuments){
+                totalDuration += (document.getTotalDuration()/1000);
+            }
+        }
+        else{
+            for(ActorEntity document : systemDocuments){
+                totalDuration += (document.getTotalDuration()/1000);
+            }
+        }
+
+        average = (double) (totalDuration / totalApplications);
+
+        return average;
     }
 
     @Override
@@ -622,7 +667,10 @@ public class ActorServiceImpl implements ActorService {
 
         Map<String, Double> taskTimeAcrossApplications = getTaskTimeAcrossApplications(actorId);
         Map<String, Double> averageTaskTime = getAverageTaskTime(actorId);
-        int totalTasksCompleted = getTasksCompleted(actorId);
+        List<Integer> tasksAndLeads = getTasksAndLeads(actorId);
+        int totalTasksCompleted = tasksAndLeads.get(0);
+        int pendingTasks = tasksAndLeads.get(1);
+        int totalLeads = tasksAndLeads.get(2);
         List<Map<String, String>> tasksAssigned = getTasksAssigned(actorId);
         Map<String, Integer> thresholdTaskFrequency = taskFrequencyThreshold();
         Map<String, Double> thresholdTaskTime = thresholdTaskTimeAcrossApplications();
@@ -633,6 +681,7 @@ public class ActorServiceImpl implements ActorService {
         Map<String, Double> taskRetriesThreshold = taskRetriesThreshold();
         String handledBy = getActorEmail();
         Map<String, Double[]> taskDuration = getTaskDuration(actorId);
+        Double avgApplicationTime = averageApplicationTime(actorId);
 
         if(taskTimeAcrossApplications == null){
             log.warn("ActorServiceImpl [getActorMetrics] : taskTimeAcrossApplications is empty");
@@ -662,6 +711,8 @@ public class ActorServiceImpl implements ActorService {
         response.put("actor_type", actorType);
         response.put("handled_by", handledBy);
         response.put("total_tasks_completed", totalTasksCompleted);
+        response.put("pending_tasks", pendingTasks);
+        response.put("total_leads", totalLeads);
         response.put("task_efficiency_score", taskEfficiencyScore);
         response.put("task_duration", taskDuration);
         response.put("tasks_sorted_by_retries", tasksSortedByRetries);
@@ -670,7 +721,7 @@ public class ActorServiceImpl implements ActorService {
         response.put("average_retries_threshold", taskRetriesThreshold);
         response.put("tasks_assigned", tasksAssigned);
         response.put("threshold_average_task_time", thresholdAverageTaskTime);
-
+        response.put("average_application_time", avgApplicationTime);
         return response;
     }
 
@@ -705,12 +756,16 @@ public class ActorServiceImpl implements ActorService {
             return response;
         }
 
-        int totalTasksCompleted = getTasksCompleted(funnel);
+        List<Integer> tasksAndLeads = getTasksAndLeads(funnel);
+        int totalTasksCompleted = tasksAndLeads.get(0);
+        int pendingTasks = tasksAndLeads.get(1);
+        int totalLeads = tasksAndLeads.get(2);
         Map<String, Object> tasksSortedByRetries = getTasksSortedByRetries(funnel);
         Map<String, Double> averageTaskTime = getAverageTaskTime(funnel);
         Map<String, Double> taskRetries = taskRetries(funnel);
         List<Map<String, String>> tasksAssigned = getTasksAssigned(funnel);
         Map<String, Double[]> systemTaskDuration = getSystemTaskDuration(funnel);
+        Double avgApplicationTime = averageApplicationTime(funnel);
 
         if(tasksAssigned == null){
             log.warn("ActorServiceImpl [getActorMetrics] : tasksAssigned is empty");
@@ -728,9 +783,12 @@ public class ActorServiceImpl implements ActorService {
         response.put("task_duration", systemTaskDuration);
         response.put("average_task_time_across_applications", averageTaskTime);
         response.put("total_tasks_completed", totalTasksCompleted);
+        response.put("pending_tasks", pendingTasks);
+        response.put("total_leads", totalLeads);
         response.put("tasks_assigned", tasksAssigned);
         response.put("tasks_sorted_by_retries", tasksSortedByRetries);
         response.put("average_retries", taskRetries);
+        response.put("average_application_time", avgApplicationTime);
         return response;
     }
 }
