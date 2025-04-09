@@ -11,9 +11,9 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-
 import java.util.*;
 import java.util.stream.Collectors;
+
 
 @Service
 @RequiredArgsConstructor
@@ -21,7 +21,6 @@ public class ApplicationGanntService {
 
     private static final Logger logger = LoggerFactory.getLogger(ApplicationGanntService.class);
     private static final String UNKNOWN_FUNNEL = "Unknown Funnel";
-
     private final TaskExecutionLogRepository taskExecutionLogRepository;
     private final SendbackConfigDao sendbackConfigDao;
 
@@ -82,6 +81,7 @@ public class ApplicationGanntService {
             String sourceTaskId = taskInfo.get("sourceTaskId");
             String targetTaskId = taskInfo.get("targetTaskId");
             logger.info("[processTask] Mapped targetTaskId={} to sourceTaskId={}", targetTaskId, sourceTaskId);
+
             if (sourceTaskId != null && sourceTaskMap.containsKey(sourceTaskId)) {
                 TaskDetailsResponse sourceTaskResponse = sourceTaskMap.get(sourceTaskId);
                 sourceTaskResponse.setTargetTaskId(targetTaskId);
@@ -138,20 +138,39 @@ public class ApplicationGanntService {
             Date initiatedAt = (Date) sendbackMetadata.get("initiatedAt");
             logger.info("[fetchTargetTaskInfo] Extracted Metadata - SourceLoanStage: {}, SourceSubModule: {}, Key: {}, InitiatedAt: {}",
                     sourceLoanStage, sourceSubModule, key, initiatedAt);
+
+            // Fetch potential source task IDs
             Set<String> sourceTaskIds = SubModuleTaskMapping.SUBMODULE_TASK_MAP.get(sourceSubModule);
             logger.info("[fetchTargetTaskInfo] Source Task IDs for SubModule {}: {}", sourceSubModule, sourceTaskIds);
 
             if (sourceTaskIds != null && !sourceTaskIds.isEmpty()) {
-                List<TaskExecutionLogEntity> sourceTasks = taskExecutionLogRepository.findTasksByTaskIdsAndStatusAfterTime(
-                        sourceTaskIds, "SENDBACK", initiatedAt
+                // Calculate the end time (initiatedAt + 2 seconds)
+                Calendar calendar = Calendar.getInstance();
+                calendar.setTime(initiatedAt);
+                calendar.add(Calendar.SECOND, 2);
+                Date endTime = calendar.getTime();
+
+                // Query the database for actual source tasks within the time range
+                List<TaskExecutionLogEntity> sourceTasks = taskExecutionLogRepository.findTasksByTaskIdsStatusAndApplicationIdWithinTimeRange(
+                        sourceTaskIds, "SENDBACK", log.getApplicationId(), initiatedAt, endTime
                 );
-                logger.info("[fetchTargetTaskInfo] Found {} source tasks with status 'sendback' after initiatedAt={}", sourceTasks.size(), initiatedAt);
-                TaskExecutionLogEntity sourceTask = sourceTasks.stream()
+                logger.info("[fetchTargetTaskInfo] Found {} source tasks with status 'sendback' between {} and {}", sourceTasks.size(), initiatedAt, endTime);
+
+                // Collect the task IDs that satisfy the condition
+                List<String> actualSourceTaskIds = sourceTasks.stream()
+                        .map(TaskExecutionLogEntity::getTaskId)
+                        .collect(Collectors.toList());
+                logger.info("[fetchTargetTaskInfo] Actual Source Task IDs: {}", actualSourceTaskIds);
+
+                // Select the most recent source task based on updatedAt
+                TaskExecutionLogEntity latestSourceTask = sourceTasks.stream()
                         .max(Comparator.comparing(TaskExecutionLogEntity::getUpdatedAt))
                         .orElse(null);
 
-                if (sourceTask != null) {
-                    logger.info("[fetchTargetTaskInfo] Latest Source Task ID: {}", sourceTask.getTaskId());
+                if (latestSourceTask != null) {
+                    logger.info("[fetchTargetTaskInfo] Latest Source Task ID: {}", latestSourceTask.getTaskId());
+
+                    // Fetch target task IDs using the key
                     List<String> targetTaskIds = sendbackConfigDao.findBySendbackKey(key)
                             .map(config -> config.getSubReasonList().stream()
                                     .filter(subReason -> key.equals(subReason.getSendbackKey()))
@@ -160,9 +179,12 @@ public class ApplicationGanntService {
                                     .orElse(Collections.emptyList()))
                             .orElse(Collections.emptyList());
                     logger.info("[fetchTargetTaskInfo] Target Task IDs for key {}: {}", key, targetTaskIds);
+
                     String targetTaskId = targetTaskIds.isEmpty() ? null : targetTaskIds.get(0);
                     logger.info("[fetchTargetTaskInfo] Selected Target Task ID: {}", targetTaskId);
-                    taskInfo.put("sourceTaskId", sourceTask.getId());
+
+                    // Populate the taskInfo map
+                    taskInfo.put("sourceTaskId", latestSourceTask.getId());
                     taskInfo.put("targetTaskId", targetTaskId);
                     taskInfo.put("sourceLoanStage", sourceLoanStage);
                     taskInfo.put("sourceSubModule", sourceSubModule);
