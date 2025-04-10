@@ -16,4 +16,10 @@ public class FileConstants {
     public static final int REDISSON_CLIENT_LEASE_TIME = 30;
     public static final int REDISSON_MIN_IDLE_CONNECTIONS = 4;
     public static final int REDISSON_RETRY_ATTEMPTS = 5;
+
+    public static final String EXCHANGE = "bff.changes.exchange";
+    public static final String TASK_EXEC_LOG_QUEUE = "task_execution_log.queue";
+    public static final String TASK_EXEC_LOG_ROUTING_KEY = "task_execution_log.routing.key";
+    public static final String TASK_EXEC_QUEUE = "task_execution.queue";
+    public static final String TASK_EXEC_ROUTING_KEY = "task_execution.routing.key";
 }

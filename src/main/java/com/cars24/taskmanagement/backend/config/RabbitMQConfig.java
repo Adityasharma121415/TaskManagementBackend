@@ -1,5 +1,6 @@
 package com.cars24.taskmanagement.backend.config;
 
+import com.cars24.taskmanagement.backend.constants.FileConstants;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;
@@ -14,15 +15,12 @@ import org.springframework.amqp.support.converter.DefaultClassMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
 public class RabbitMQConfig {
-
-    public static final String TASK_EXECUTION_EXCHANGE = "taskExecutionExchange";
-    public static final String TASK_PRIORITY_QUEUE = "taskPriorityQueue";
-    public static final String TASK_ROUTING_KEY = "priorityRoutingKey";
 
     @Bean
     public ConnectionFactory connectionFactory() {
@@ -35,21 +33,35 @@ public class RabbitMQConfig {
 
     @Bean
     public TopicExchange taskExecutionExchange() {
-        return new TopicExchange(TASK_EXECUTION_EXCHANGE);
+        return new TopicExchange(FileConstants.EXCHANGE);
     }
 
     @Bean
     public Queue taskPriorityQueue() {
         Map<String, Object> args = new HashMap<>();
         args.put("x-max-priority", 10);
-        return new Queue(TASK_PRIORITY_QUEUE, true, false, false, args);
+        return new Queue(FileConstants.TASK_EXEC_QUEUE, true, false, false, args);
     }
 
     @Bean
-    public Binding binding(Queue taskPriorityQueue, TopicExchange taskExecutionExchange) {
+    public Queue taskExecutionLogQueue() {
+        Map<String, Object> args = new HashMap<>();
+        args.put("x-max-priority", 10);
+        return new Queue(FileConstants.TASK_EXEC_LOG_QUEUE, true, false, false, args);
+    }
+
+    @Bean
+    public Binding taskExecutionbinding(Queue taskPriorityQueue, TopicExchange taskExecutionExchange) {
         return BindingBuilder.bind(taskPriorityQueue)
                 .to(taskExecutionExchange)
-                .with(TASK_ROUTING_KEY);
+                .with(FileConstants.TASK_EXEC_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding taskExecutionLogbinding(Queue taskExecutionLogQueue, TopicExchange exchange) {
+        return BindingBuilder.bind(taskExecutionLogQueue)
+                .to(exchange)
+                .with(FileConstants.TASK_EXEC_LOG_ROUTING_KEY);
     }
 
     @Bean
