@@ -10,6 +10,7 @@ import com.cars24.taskmanagement.backend.utils.TimeUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -24,6 +25,45 @@ public class SlaServiceImpl implements SlaService {
 
     @Override
     public SlaResponse getSlaMetricsByChannel(String channel, Integer days, String appStatusFilter) {
+
+        // If channel equals "ALL", aggregate executions from all specified channels.
+        if ("ALL".equalsIgnoreCase(channel)) {
+            List<String> channels = Arrays.asList("D2C", "C2C", "DCF", "BT", "LAC");
+            List<TaskExecutionTimeEntity> aggregatedExecutions = new ArrayList<>();
+
+            // Retrieve and accumulate tasks from each channel.
+            for (String ch : channels) {
+                aggregatedExecutions.addAll(slaDao.getTasksByChannel(ch));
+            }
+
+            // Apply time filtering if applicable.
+            if (days != null && days > 0) {
+                Instant cutoff = Instant.now().minus(days, ChronoUnit.DAYS);
+                aggregatedExecutions = aggregatedExecutions.stream()
+                        .filter(e -> e.getRecordDate() != null && e.getRecordDate().isAfter(cutoff))
+                        .collect(Collectors.toList());
+                log.info("Filtered {} records for ALL channels within last {} days", aggregatedExecutions.size(), days);
+            }
+
+            // Apply application status filter if provided.
+            if (appStatusFilter != null && !appStatusFilter.trim().isEmpty()) {
+                aggregatedExecutions = aggregatedExecutions.stream()
+                        .filter(e -> determineApplicationStatus(e).equalsIgnoreCase(appStatusFilter))
+                        .collect(Collectors.toList());
+                log.info("Filtered {} records for ALL channels with overall status: {}", aggregatedExecutions.size(), appStatusFilter);
+            }
+
+            if (aggregatedExecutions.isEmpty()) {
+                throw new SlaException("No data found for ALL channels" +
+                        (days != null && days > 0 ? " in the past " + days + " days" : "") +
+                        (!appStatusFilter.trim().isEmpty() ? " with status " + appStatusFilter : ""));
+            }
+            log.info("Processing {} execution records for ALL channels", aggregatedExecutions.size());
+
+            return processExecutionsAndBuildResponse(aggregatedExecutions);
+        }
+
+        // Single channel processing.
         List<TaskExecutionTimeEntity> executions = slaDao.getTasksByChannel(channel);
 
         if (days != null && days > 0) {
@@ -49,6 +89,13 @@ public class SlaServiceImpl implements SlaService {
 
         log.info("Processing {} execution records for channel: {}", executions.size(), channel);
 
+        return processExecutionsAndBuildResponse(executions);
+    }
+
+    /**
+     * Helper method to process the list of TaskExecutionTimeEntity records and build the SlaResponse.
+     */
+    private SlaResponse processExecutionsAndBuildResponse(List<TaskExecutionTimeEntity> executions) {
         Map<String, List<Long>> taskDurations = new LinkedHashMap<>();
         Map<String, List<Long>> taskSendbacks = new LinkedHashMap<>();
         Map<String, Set<String>> funnelToTaskMapping = new LinkedHashMap<>();
@@ -259,22 +306,17 @@ public class SlaServiceImpl implements SlaService {
         for (Map.Entry<String, Long> entry : appTatMap.entrySet()) {
             String appId = entry.getKey();
             long tat = entry.getValue();
-            // If tat is very close to the lower threshold (within tolLower), treat it as lowest.
             if (tat <= p30 || (tat > p30 && tat - p30 <= tolLower)) {
                 SlaResponse.Distribution d = distribution.get(lowerRangeKey);
                 d.setCount(d.getCount() + 1);
                 d.getApplicationIds().add(appId);
                 d.getApplicationStatusMap().put(appId, appStatusMap.get(appId));
-            }
-            // If tat is near the upper boundary of the middle bucket (within tolUpper), assign it to middle.
-            else if (tat < p70 && (p70 - tat <= tolUpper)) {
+            } else if (tat < p70 && (p70 - tat <= tolUpper)) {
                 SlaResponse.Distribution d = distribution.get(middleRangeKey);
                 d.setCount(d.getCount() + 1);
                 d.getApplicationIds().add(appId);
                 d.getApplicationStatusMap().put(appId, appStatusMap.get(appId));
-            }
-            // Otherwise, use the normal rules.
-            else if (tat < p70) {
+            } else if (tat < p70) {
                 SlaResponse.Distribution d = distribution.get(middleRangeKey);
                 d.setCount(d.getCount() + 1);
                 d.getApplicationIds().add(appId);
@@ -318,7 +360,7 @@ public class SlaServiceImpl implements SlaService {
             for (Map.Entry<String, List<SubTaskEntity>> entry : funnels.entrySet()) {
                 for (SubTaskEntity task : entry.getValue()) {
                     taskRecords.computeIfAbsent(task.getTaskId(), k -> new ArrayList<>())
-                            .add(new TaskDurationRecord(appId, task.getDuration(), task.getStatusoftask())); // ✅ Added statusOfTask
+                            .add(new TaskDurationRecord(appId, task.getDuration(), task.getStatusoftask()));
                 }
             }
         }
@@ -329,7 +371,6 @@ public class SlaServiceImpl implements SlaService {
             String taskId = entry.getKey();
             List<TaskDurationRecord> records = entry.getValue();
 
-            // Create a sorted list of durations for this task.
             List<Long> durations = records.stream()
                     .map(r -> r.duration)
                     .sorted()
@@ -346,7 +387,7 @@ public class SlaServiceImpl implements SlaService {
                 for (TaskDurationRecord rec : records) {
                     dist.setCount(dist.getCount() + 1);
                     dist.getApplicationIds().add(rec.applicationId);
-                    dist.getApplicationStatusMap().put(rec.applicationId, rec.statusOfTask); // ✅ Store status in map
+                    dist.getApplicationStatusMap().put(rec.applicationId, rec.statusOfTask);
                 }
 
                 buckets.put(rangeKey, dist);
@@ -390,7 +431,7 @@ public class SlaServiceImpl implements SlaService {
                 }
             }
 
-            // Trim applicationIds to last 100 entries
+            // Trim applicationIds to last 100 entries if necessary.
             for (SlaResponse.Distribution distribution : buckets.values()) {
                 List<String> appIds = distribution.getApplicationIds();
                 if (appIds.size() > 100) {
@@ -403,7 +444,6 @@ public class SlaServiceImpl implements SlaService {
 
         return result;
     }
-
 
     private String formatRange(long startMillis, long endMillis) {
         return SlaResponse.formatDuration(startMillis) + " - " + SlaResponse.formatDuration(endMillis);
@@ -450,12 +490,12 @@ public class SlaServiceImpl implements SlaService {
     private static class TaskDurationRecord {
         String applicationId;
         long duration;
-        String statusOfTask; // ✅ Added field for task status
+        String statusOfTask;
 
         public TaskDurationRecord(String applicationId, long duration, String statusOfTask) {
             this.applicationId = applicationId;
             this.duration = duration;
-            this.statusOfTask = statusOfTask; // ✅ Assign the status
+            this.statusOfTask = statusOfTask;
         }
     }
 
@@ -470,10 +510,7 @@ public class SlaServiceImpl implements SlaService {
                 hasTasks = true;
                 String status = task.getStatusoftask();
 
-                // Corrected logic: mark as false if status is not one of COMPLETED, SKIPPED, or NEW.
-                if (status == null || (!status.equalsIgnoreCase("COMPLETED")
-                        && !status.equalsIgnoreCase("SKIPPED")
-                        && !status.equalsIgnoreCase("NEW"))) {
+                if (status == null || !(status.equalsIgnoreCase("COMPLETED") || status.equalsIgnoreCase("SKIPPED"))) {
                     allCompletedOrSkipped = false;
                 }
 
@@ -491,5 +528,4 @@ public class SlaServiceImpl implements SlaService {
         if (allCompletedOrSkipped) return "Approved";
         return "Rejected";
     }
-
 }
