@@ -106,13 +106,13 @@ public class TaskExecutionListener {
                         "priorityRoutingKey",         // Routing key from RabbitMQConfig
                         payload,
                         message -> {
-                            // Optionally set a priority level
+
                             message.getMessageProperties().setPriority(5);
                             return message;
                         }
                 );
 
-                // Store the resume token after successfully publishing.
+
                 storeResumeToken(changeStreamDocument.getResumeToken());
             } else {
                 log.info("TaskExecutionListener [processChangeStreamDocument] Unable to acquire lock for task: {}", fullDocument.getObjectId("_id").toHexString());
